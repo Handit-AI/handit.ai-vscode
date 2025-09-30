@@ -1,0 +1,53 @@
+# Node
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+out/
+**/out/
+webview/dist/
+**/dist/
+
+# TypeScript
+*.tsbuildinfo
+
+# VS Code
+.vscode/
+.history/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs
+logs/
+*.log
+
+# Coverage
+coverage/
+
+# Temporary
+.tmp/
+.temp/
+*.swp
+*.swo
+
+# IDE
+.idea/
+*.iml
+
+# Generated maps
+*.map
+
+# Lock files for webview (optional, keep root lock if desired)
+webview/package-lock.json

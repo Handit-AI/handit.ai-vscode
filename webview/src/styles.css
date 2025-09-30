@@ -1,0 +1,554 @@
+/* CSS Variables for VS Code theme integration */
+:root {
+  --vscode-font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --vscode-font-size: 13px;
+  --vscode-font-weight: 400;
+  --vscode-editor-background: #1e1e1e;
+  --vscode-editor-foreground: #cccccc;
+  --vscode-input-background: #3c3c3c;
+  --vscode-input-foreground: #cccccc;
+  --vscode-input-border: #6fc3df;
+  --vscode-button-background: #0e639c;
+  --vscode-button-foreground: #ffffff;
+  --vscode-button-hoverBackground: #1177bb;
+  --vscode-focusBorder: #007acc;
+  --vscode-errorForeground: #f48771;
+  --vscode-textLink-foreground: #3794ff;
+  --vscode-textLink-activeForeground: #3794ff;
+  --vscode-widget-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --vscode-scrollbar-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* Light theme overrides */
+.vscode-light {
+  --vscode-editor-background: #ffffff;
+  --vscode-editor-foreground: #333333;
+  --vscode-input-background: #ffffff;
+  --vscode-input-foreground: #333333;
+  --vscode-input-border: #007acc;
+  --vscode-button-background: #007acc;
+  --vscode-button-foreground: #ffffff;
+  --vscode-button-hoverBackground: #005a9e;
+  --vscode-focusBorder: #007acc;
+  --vscode-errorForeground: #a1260d;
+  --vscode-textLink-foreground: #0066cc;
+  --vscode-textLink-activeForeground: #0066cc;
+  --vscode-widget-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --vscode-scrollbar-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+/* Reset and base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  font-weight: var(--vscode-font-weight);
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* App layout */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 24px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* Vertically center the main block (header + form) */
+.app-main {
+  margin: auto 0 0 0;
+  padding-top: 40px;
+}
+
+.app-header {
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.logo-image {
+  height: 60px;
+  width: auto;
+  max-width: 200px;
+  object-fit: contain;
+}
+
+.app-subtitle {
+  color: var(--vscode-editor-foreground);
+  opacity: 0.8;
+  font-size: 16px;
+}
+
+.app-content {
+  /* no flex-grow so header+content can be centered by container */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.app-footer {
+  margin-top: auto; /* keep footer at bottom */
+  text-align: center;
+  padding-top: 24px;
+}
+
+.footer-text {
+  font-size: 12px;
+  color: var(--vscode-editor-foreground);
+  opacity: 0.6;
+  line-height: 1.4;
+}
+
+.footer-link {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-link:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+}
+
+/* Login form styles */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--vscode-editor-foreground);
+}
+
+.form-input {
+  padding: 12px 16px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 8px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  outline: none;
+  width: 100%;
+}
+
+.form-input:focus {
+  border-color: var(--vscode-focusBorder);
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.form-input--error {
+  border-color: var(--vscode-errorForeground);
+}
+
+.form-input--error:focus {
+  border-color: var(--vscode-errorForeground);
+  box-shadow: 0 0 0 2px rgba(244, 135, 113, 0.2);
+}
+
+.form-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.password-input-container {
+  position: relative;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--vscode-editor-foreground);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.password-toggle:hover {
+  opacity: 1;
+}
+
+.password-toggle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Ensure password input width matches email input when icon present */
+.password-input-container .form-input {
+  padding-right: 44px; /* space for the icon button */
+}
+
+.password-toggle svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.form-error {
+  font-size: 12px;
+  color: var(--vscode-errorForeground);
+  margin-top: 4px;
+}
+
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--vscode-focusBorder);
+}
+
+.checkbox-label {
+  font-size: 14px;
+  color: var(--vscode-editor-foreground);
+  user-select: none;
+}
+
+.forgot-password {
+  font-size: 14px;
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.forgot-password:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+}
+
+/* Button styles */
+.login-button {
+  padding: 14px 24px;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+}
+
+.login-button:hover:not(:disabled) {
+  background-color: var(--vscode-button-hoverBackground);
+  transform: translateY(-1px);
+  box-shadow: var(--vscode-widget-shadow);
+}
+
+.login-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.login-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.login-button--loading {
+  cursor: not-allowed;
+}
+
+.auth-note {
+  text-align: center;
+  font-size: 13px;
+  color: var(--vscode-editor-foreground);
+  opacity: 0.8;
+}
+
+.auth-note__action {
+  font-weight: 600;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Divider */
+.divider {
+  position: relative;
+  text-align: center;
+  margin: 24px 0;
+}
+
+.divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--vscode-input-border);
+  opacity: 0.3;
+}
+
+.divider-text {
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  padding: 0 16px;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+/* Social buttons */
+.social-button {
+  padding: 12px 16px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 8px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 44px;
+}
+
+/* Control Panel */
+.cp-layout {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 24px;
+  min-height: 60vh;
+}
+
+.cp-sidebar {
+  border-right: 1px solid var(--vscode-input-border);
+  padding-right: 12px;
+}
+
+.cp-steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cp-step {
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--vscode-editor-foreground);
+  opacity: 0.9;
+  cursor: pointer;
+}
+
+.cp-step--active {
+  background: rgba(56, 121, 217, 0.25);
+  outline: 1px solid var(--vscode-focusBorder);
+  opacity: 1;
+}
+
+.cp-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cp-card {
+  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-input-background);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cp-title {
+  font-size: 18px;
+}
+
+.cp-subtext {
+  opacity: 0.9;
+}
+
+.cp-primary {
+  align-self: flex-start;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  cursor: pointer;
+}
+
+.cp-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cp-list-item {
+  display: flex;
+  justify-content: space-between;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.cp-meta { opacity: 0.9; }
+.cp-pass { color: #34c759; }
+
+.cp-section-title { font-size: 16px; }
+
+.social-button:hover:not(:disabled) {
+  background-color: var(--vscode-button-hoverBackground);
+  color: var(--vscode-button-foreground);
+  transform: translateY(-1px);
+  box-shadow: var(--vscode-widget-shadow);
+}
+
+.social-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.social-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.social-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.social-button--google {
+  background-color: #ffffff;
+  color: #333333;
+  border-color: #dadce0;
+}
+
+.social-button--google:hover:not(:disabled) {
+  background-color: #f8f9fa;
+  color: #333333;
+}
+
+.social-button--github {
+  background-color: #24292e;
+  color: #ffffff;
+  border-color: #24292e;
+}
+
+.social-button--github:hover:not(:disabled) {
+  background-color: #1a1e22;
+  color: #ffffff;
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+  .app {
+    padding: 16px;
+  }
+  
+  .logo-image {
+    height: 50px;
+  }
+  
+  .form-options {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+}
+
+/* High contrast mode support */
+.vscode-high-contrast {
+  --vscode-input-border: #ffffff;
+  --vscode-focusBorder: #ffffff;
+  --vscode-button-background: #ffffff;
+  --vscode-button-foreground: #000000;
+  --vscode-button-hoverBackground: #ffffff;
+}
+
+.vscode-high-contrast .form-input {
+  border-width: 2px;
+}
+
+.vscode-high-contrast .login-button {
+  border: 2px solid var(--vscode-button-foreground);
+}
+
+.vscode-high-contrast .social-button {
+  border-width: 2px;
+}
