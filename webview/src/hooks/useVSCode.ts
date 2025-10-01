@@ -9,10 +9,16 @@ export const useVSCode = () => {
    * @param message The message to send
    */
   const postMessage = (message: any) => {
+    // Try different ways to access VS Code API
     if (window.vscode) {
       window.vscode.postMessage(message);
+    } else if ((window as any).acquireVsCodeApi) {
+      const vscode = (window as any).acquireVsCodeApi();
+      vscode.postMessage(message);
     } else {
-      console.warn('VS Code API not available');
+      console.warn('VS Code API not available, trying alternative method');
+      // Fallback: try to post message directly
+      window.parent.postMessage(message, '*');
     }
   };
 
@@ -56,6 +62,9 @@ export const useVSCode = () => {
 declare global {
   interface Window {
     vscode: {
+      postMessage: (message: any) => void;
+    };
+    acquireVsCodeApi: () => {
       postMessage: (message: any) => void;
     };
   }

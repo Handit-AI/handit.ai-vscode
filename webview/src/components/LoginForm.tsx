@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useVSCode } from '../hooks/useVSCode';
 
 /**
@@ -15,8 +15,41 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [apiResponse, setApiResponse] = useState<{ success: boolean; data?: any; error?: string } | null>(null);
 
   const { postMessage } = useVSCode();
+
+  /**
+   * Listen for messages from the VS Code extension
+   */
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      console.log('📨 Received message from VS Code:', event.data);
+      const message = event.data;
+      if (message.command === 'signupResponse') {
+        console.log('✅ Signup response received:', message);
+        setApiResponse({
+          success: message.success,
+          data: message.data,
+          error: message.error
+        });
+        
+        // Stop loading when we get a response
+        setIsLoading(false);
+        
+        if (message.success) {
+          console.log('🎉 Signup successful, navigating to next view');
+          // Navigate to next view on successful signup
+          onSuccess?.();
+        } else {
+          console.log('❌ Signup failed:', message.error);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [onSuccess]);
 
   /**
    * Validates the form inputs
@@ -53,19 +86,21 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
     setIsLoading(true);
     
     try {
-      // Send login data to VS Code extension
+      console.log('🚀 Sending signup request:', { email, password: '***' });
+      
+      // Send signup data to VS Code extension
       postMessage({
-        command: 'login',
+        command: 'signup',
         email,
         password
       });
 
-      // Navigate to next view when everything is OK
-      onSuccess?.();
+      console.log('📤 Signup message sent to VS Code extension');
+      // Note: onSuccess will be called when we receive a successful response
+      // from the extension, not immediately
     } catch (error) {
-      console.error('Login error:', error);
-    } finally {
-      setIsLoading(false);
+      console.error('❌ Signup error:', error);
+      setIsLoading(false); // Only stop loading on error
     }
   };
 
@@ -164,12 +199,30 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
         {isLoading ? (
           <>
             <span className="spinner"></span>
-            Signing in...
+            Creating Account...
           </>
         ) : (
           'Create Account'
         )}
       </button>
+
+      {/* API Response Display */}
+      {apiResponse && (
+        <div className={`api-response ${apiResponse.success ? 'api-response--success' : 'api-response--error'}`}>
+          <h4>{apiResponse.success ? '✅ Signup Successful!' : '❌ Signup Failed'}</h4>
+          {apiResponse.success ? (
+            <div>
+              <p>Account created successfully!</p>
+              <details>
+                <summary>API Response</summary>
+                <pre>{JSON.stringify(apiResponse.data, null, 2)}</pre>
+              </details>
+            </div>
+          ) : (
+            <p>{apiResponse.error}</p>
+          )}
+        </div>
+      )}
 
       <p className="auth-note">Already have an account? <span className="auth-note__action">Sign in</span></p>
 

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { apiService } from './services/ApiService';
 
 /**
  * Provider for the login panel webview
@@ -42,6 +43,9 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
                     case 'login':
                         this._handleLogin(message.email, message.password);
                         return;
+                    case 'signup':
+                        this._handleSignup(message.email, message.password, webviewView.webview);
+                        return;
                     case 'showMessage':
                         vscode.window.showInformationMessage(message.text);
                         return;
@@ -57,15 +61,98 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
      * @param email User email
      * @param password User password
      */
-    private _handleLogin(email: string, password: string) {
-        // For now, just show a message (no actual login functionality)
-        vscode.window.showInformationMessage(`Login attempt with email: ${email}`);
-        
-        // In a real implementation, you would:
-        // 1. Validate credentials
-        // 2. Make API calls
-        // 3. Store authentication tokens
-        // 4. Update UI state
+    private async _handleLogin(email: string, password: string) {
+        try {
+            // Prepare login data
+            const loginData = {
+                email: email,
+                password: password
+            };
+
+            // Use ApiService singleton for the API call
+            const response = await apiService.signinCompany(loginData);
+            
+            // Store authentication token if provided
+            if (response.data.token) {
+                apiService.setAuthToken(response.data.token);
+                vscode.window.showInformationMessage(`Login successful for ${email}!`);
+            } else {
+                vscode.window.showInformationMessage(`Login successful for ${email}!`);
+            }
+
+        } catch (error: any) {
+            // Handle different types of errors
+            let errorMessage = 'Failed to login';
+            if (error.code === 'ECONNREFUSED') {
+                errorMessage = 'Cannot connect to Handit.ai service. Please ensure it\'s running.';
+            } else if (error.response?.status === 401) {
+                errorMessage = 'Invalid email or password.';
+            } else if (error.response?.status === 400) {
+                errorMessage = 'Invalid login data. Please check your information.';
+            } else if (error.response?.status) {
+                errorMessage = `Login error: ${error.response.status} ${error.response.statusText}`;
+            }
+
+            // Show error message in VS Code
+            vscode.window.showErrorMessage(`Login failed: ${errorMessage}`);
+        }
+    }
+
+    /**
+     * Handles signup attempts from the webview
+     * @param email User email
+     * @param password User password
+     * @param webview The webview instance for sending responses
+     */
+    private async _handleSignup(email: string, password: string, webview: vscode.Webview) {
+        try {
+            // Extract firstName from email (part before @)
+            const firstName = email.split('@')[0];
+            
+            // Prepare signup data
+            const signupData = {
+                email: email,
+                password: password,
+                firstName: firstName,
+                lastName: ""
+            };
+
+            // Use ApiService singleton for the API call
+            const response = await apiService.signupCompany(signupData);
+            
+            // Send success response to webview
+            webview.postMessage({
+                command: 'signupResponse',
+                success: true,
+                data: response.data
+            });
+
+            // Show success message in VS Code
+            vscode.window.showInformationMessage(`Signup successful for ${email}!`);
+
+        } catch (error: any) {
+            // Handle different types of errors
+            let errorMessage = 'Failed to create account';
+            if (error.code === 'ECONNREFUSED') {
+                errorMessage = 'Cannot connect to Handit.ai service. Please ensure it\'s running.';
+            } else if (error.response?.status === 400) {
+                errorMessage = 'Invalid signup data. Please check your information.';
+            } else if (error.response?.status === 409) {
+                errorMessage = 'Account already exists with this email.';
+            } else if (error.response?.status) {
+                errorMessage = `Signup error: ${error.response.status} ${error.response.statusText}`;
+            }
+
+            // Send error response to webview
+            webview.postMessage({
+                command: 'signupResponse',
+                success: false,
+                error: errorMessage
+            });
+
+            // Show error message in VS Code
+            vscode.window.showErrorMessage(`Signup failed: ${errorMessage}`);
+        }
     }
 
     /**
@@ -132,6 +219,10 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
     <div id="root"></div>
+    <script>
+        const vscode = acquireVsCodeApi();
+        window.vscode = vscode;
+    </script>
     <script type="module" src="http://localhost:5173/@vite/client"></script>
     <script type="module" src="http://localhost:5173/src/main.tsx"></script>
 </body>
@@ -167,6 +258,10 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
     <div id="root"></div>
+    <script>
+        const vscode = acquireVsCodeApi();
+        window.vscode = vscode;
+    </script>
     <script type="module" src="${webviewUri}/assets/index.js"></script>
 </body>
 </html>`;

@@ -552,3 +552,72 @@ body {
 .vscode-high-contrast .social-button {
   border-width: 2px;
 }
+
+/* API Response Display */
+.api-response {
+  padding: 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+  border: 1px solid;
+  font-size: 14px;
+}
+
+.api-response--success {
+  background-color: rgba(52, 199, 89, 0.1);
+  border-color: #34c759;
+  color: #34c759;
+}
+
+.api-response--error {
+  background-color: rgba(244, 135, 113, 0.1);
+  border-color: var(--vscode-errorForeground);
+  color: var(--vscode-errorForeground);
+}
+
+.api-response h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.api-response p {
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+}
+
+.api-response details {
+  margin-top: 12px;
+}
+
+.api-response summary {
+  cursor: pointer;
+  font-weight: 500;
+  margin-bottom: 8px;
+  padding: 4px 0;
+}
+
+.api-response pre {
+  background-color: rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  padding: 12px;
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+/* Light theme API response */
+.vscode-light .api-response--success {
+  background-color: rgba(52, 199, 89, 0.05);
+}
+
+.vscode-light .api-response--error {
+  background-color: rgba(244, 135, 113, 0.05);
+}
+
+.vscode-light .api-response pre {
+  background-color: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+}
