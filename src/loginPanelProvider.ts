@@ -41,7 +41,7 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
             message => {
                 switch (message.command) {
                     case 'login':
-                        this._handleLogin(message.email, message.password);
+                        this._handleLogin(message.email, message.password, webviewView.webview);
                         return;
                     case 'signup':
                         this._handleSignup(message.email, message.password, webviewView.webview);
@@ -60,8 +60,9 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
      * Handles login attempts from the webview
      * @param email User email
      * @param password User password
+     * @param webview The webview instance for sending responses
      */
-    private async _handleLogin(email: string, password: string) {
+    private async _handleLogin(email: string, password: string, webview: vscode.Webview) {
         try {
             // Prepare login data
             const loginData = {
@@ -69,18 +70,63 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
                 password: password
             };
 
-            // Use ApiService singleton for the API call
-            const response = await apiService.signinCompany(loginData);
+            console.log('🚀 Attempting login with new endpoint...');
+            console.log('📤 Login data:', loginData);
+
+            // Use new login endpoint
+            const response = await apiService.login(loginData);
+            
+            console.log('✅ Login response received');
+            console.log('📥 Login response data:', response.data);
             
             // Store authentication token if provided
             if (response.data.token) {
+                console.log('🔑 Token received from login response:', response.data.token);
+                console.log('🔑 Token type:', typeof response.data.token);
+                console.log('🔑 Token length:', response.data.token.length);
                 apiService.setAuthToken(response.data.token);
+                console.log('✅ Token stored in ApiService');
                 vscode.window.showInformationMessage(`Login successful for ${email}!`);
+                
+                // Send success response to webview
+                if (webview) {
+                    webview.postMessage({
+                        command: 'loginResponse',
+                        success: true,
+                        data: response.data
+                    });
+                }
+                
+                // Create CodeGPT session after successful login
+                await this._createCodeGPTSession(webview);
             } else {
+                console.log('⚠️ No token received from login response');
+                console.log('📊 Login response data:', response.data);
                 vscode.window.showInformationMessage(`Login successful for ${email}!`);
+                
+                // Send success response to webview
+                if (webview) {
+                    webview.postMessage({
+                        command: 'loginResponse',
+                        success: true,
+                        data: response.data
+                    });
+                }
+                
+                // Create CodeGPT session after successful login
+                await this._createCodeGPTSession(webview);
             }
 
         } catch (error: any) {
+            console.error('❌ Login error:', error);
+            console.error('📊 Error details:', {
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data,
+                message: error.message,
+                code: error.code
+            });
+
             // Handle different types of errors
             let errorMessage = 'Failed to login';
             if (error.code === 'ECONNREFUSED') {
@@ -91,6 +137,15 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
                 errorMessage = 'Invalid login data. Please check your information.';
             } else if (error.response?.status) {
                 errorMessage = `Login error: ${error.response.status} ${error.response.statusText}`;
+            }
+
+            // Send error response to webview
+            if (webview) {
+                webview.postMessage({
+                    command: 'loginResponse',
+                    success: false,
+                    error: errorMessage
+                });
             }
 
             // Show error message in VS Code
@@ -120,6 +175,18 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
             // Use ApiService singleton for the API call
             const response = await apiService.signupCompany(signupData);
             
+            // Store authentication token if provided
+            if (response.data.token) {
+                console.log('🔑 Token received from signup response:', response.data.token);
+                console.log('🔑 Token type:', typeof response.data.token);
+                console.log('🔑 Token length:', response.data.token.length);
+                apiService.setAuthToken(response.data.token);
+                console.log('✅ Token stored in ApiService');
+            } else {
+                console.log('⚠️ No token received from signup response');
+                console.log('📊 Signup response data:', response.data);
+            }
+            
             // Send success response to webview
             webview.postMessage({
                 command: 'signupResponse',
@@ -129,6 +196,9 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
 
             // Show success message in VS Code
             vscode.window.showInformationMessage(`Signup successful for ${email}!`);
+            
+            // Create CodeGPT session after successful signup
+            await this._createCodeGPTSession(webview);
 
         } catch (error: any) {
             // Handle different types of errors
@@ -227,6 +297,141 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
     <script type="module" src="http://localhost:5173/src/main.tsx"></script>
 </body>
 </html>`;
+    }
+
+    /**
+     * Creates a CodeGPT session after successful authentication
+     * This method is called after both login and signup
+     * @param webview The webview instance for sending messages
+     */
+    private async _createCodeGPTSession(webview: vscode.Webview) {
+        try {
+            console.log('🚀 Creating CodeGPT session after authentication...');
+            
+            // Create CodeGPT session with live type and empty masking rules
+            const sessionData = {
+                type: 'live' as const,
+                masking_rules: {} as Record<string, any>
+            };
+            
+            const response = await apiService.createCodeGPTSession(sessionData);
+            
+            console.log('✅ CodeGPT session created successfully after authentication');
+            console.log('📥 Session ID:', response.data.id);
+            console.log('📊 Full session response:', response.data);
+            
+            // Show success message to user
+            vscode.window.showInformationMessage(`CodeGPT session created! Session ID: ${response.data.id}`);
+            
+            // Establish Socket.IO connection after successful session creation
+            await this._establishSocketConnection(response.data.id, webview);
+            
+        } catch (error: any) {
+            console.error('❌ Failed to create CodeGPT session:', error);
+            console.error('📊 Error details:', {
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data,
+                message: error.message,
+                code: error.code
+            });
+            
+            // Handle different types of errors
+            let errorMessage = 'Failed to create CodeGPT session';
+            if (error.code === 'ECONNREFUSED') {
+                errorMessage = 'Cannot connect to Handit.ai service for CodeGPT session.';
+            } else if (error.response?.status === 401) {
+                errorMessage = 'Authentication failed for CodeGPT session.';
+            } else if (error.response?.status === 500) {
+                errorMessage = `Server error (500): ${error.response?.data?.message || error.response?.statusText || 'Internal server error'}`;
+                console.error('🔍 Server error details:', error.response?.data);
+            } else if (error.response?.status) {
+                errorMessage = `CodeGPT session error: ${error.response.status} ${error.response.statusText}`;
+                if (error.response.data) {
+                    console.error('🔍 Response data:', error.response.data);
+                }
+            }
+            
+            // Show error message (but don't fail the login/signup process)
+            vscode.window.showWarningMessage(`CodeGPT session warning: ${errorMessage}`);
+        }
+    }
+
+    /**
+     * Establishes Socket.IO connection after CodeGPT session creation
+     * @param sessionId The session ID from the CodeGPT session
+     * @param webview The webview instance for sending messages
+     */
+    private async _establishSocketConnection(sessionId: string, webview: vscode.Webview) {
+        try {
+            console.log('🔌 Establishing Socket.IO connection...');
+            console.log('📋 Session ID for socket connection:', sessionId);
+            
+            // Call the establishSocketConnection method from ApiService
+            const socket = await apiService.establishSocketConnection(sessionId, {
+                onConnect: (socket) => {
+                    console.log('🎉 Socket connection established successfully!');
+                    console.log('📡 Socket ID:', socket.id);
+                    vscode.window.showInformationMessage('Socket connection established successfully!');
+                },
+                onDisconnect: (reason) => {
+                    console.log('🔌 Socket disconnected:', reason);
+                    vscode.window.showWarningMessage(`Socket disconnected: ${reason}`);
+                },
+                onConnectError: (error) => {
+                    console.error('❌ Socket connection error:', error);
+                    vscode.window.showErrorMessage(`Socket connection failed: ${error.message}`);
+                },
+                onSubscribed: (data) => {
+                    console.log('✅ Successfully subscribed to company notifications');
+                    console.log('📊 Subscription data:', data);
+                },
+                onUnsubscribed: (data) => {
+                    console.log('✅ Successfully unsubscribed from company notifications');
+                    console.log('📊 Unsubscription data:', data);
+                },
+                onRunCompleted: (data) => {
+                    console.log('🎯 Run completed notification received!');
+                    console.log('📋 Run data:', data);
+                    
+                    const run = data.run;
+                    if (run && run.action === 'track') {
+                        console.log('🎯 Track run detected - sending trace count update to webview');
+                        
+                        // Send trace count update to webview
+                        webview.postMessage({
+                            command: 'traceReceived',
+                            traceData: run,
+                            timestamp: data.timestamp
+                        });
+                    }
+                    
+                    vscode.window.showInformationMessage('New run completed! Check console for details.');
+                },
+                onSessionUpdated: (data) => {
+                    console.log('🔄 Session updated notification received!');
+                    console.log('📋 Session update data:', data);
+                },
+                onError: (error) => {
+                    console.error('❌ Socket error:', error);
+                    vscode.window.showErrorMessage(`Socket error: ${error}`);
+                }
+            });
+            
+            console.log('✅ Socket connection method completed successfully');
+            return socket;
+            
+        } catch (error: any) {
+            console.error('❌ Failed to establish Socket.IO connection:', error);
+            console.error('📊 Socket connection error details:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
+            
+            // Show error message but don't fail the entire process
+            vscode.window.showWarningMessage(`Socket connection warning: ${error.message}`);
+        }
     }
 
     /**

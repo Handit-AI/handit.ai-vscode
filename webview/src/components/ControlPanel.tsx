@@ -3,14 +3,19 @@ import React, { useState } from 'react';
 type StepKey = 'start' | 'send' | 'run' | 'review' | 'fixes';
 
 const steps: { key: StepKey; label: string }[] = [
-  { key: 'start', label: 'Start Session' },
+  { key: 'start', label: 'Fix My AI' },
   { key: 'send', label: 'Send Traces' },
   { key: 'run', label: 'Run Evaluations' },
   { key: 'review', label: 'Review Insights' },
   { key: 'fixes', label: 'Apply Fixes' }
 ];
 
-const StepContent: React.FC<{ active: StepKey }> = ({ active }) => {
+interface ControlPanelProps {
+  traceCount?: number;
+  isActive?: boolean;
+}
+
+const StepContent: React.FC<{ active: StepKey; traceCount?: number; isActive?: boolean }> = ({ active, traceCount = 0, isActive = false }) => {
   switch (active) {
     case 'start':
       return (
@@ -23,8 +28,23 @@ const StepContent: React.FC<{ active: StepKey }> = ({ active }) => {
       return (
         <div className="cp-card">
           <h2 className="cp-title">Sending traces to Handit:</h2>
-          <p className="cp-subtext">3 traces received</p>
-          <button className="cp-primary">Run Evaluations</button>
+          <div className="trace-counter">
+            <p className="cp-subtext">
+              {isActive ? (
+                <span className="trace-count-active">
+                  🎯 <strong>{traceCount}</strong> traces received
+                  {traceCount > 0 && <span className="trace-indicator"> ● Live</span>}
+                </span>
+              ) : (
+                <span className="trace-count-inactive">
+                  {traceCount} traces received
+                </span>
+              )}
+            </p>
+          </div>
+          {traceCount > 0 && (
+            <button className="cp-primary">Run Evaluations</button>
+          )}
         </div>
       );
     case 'run':
@@ -63,7 +83,7 @@ const StepContent: React.FC<{ active: StepKey }> = ({ active }) => {
   }
 };
 
-const ControlPanel: React.FC = () => {
+const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, isActive = false }) => {
   const [active, setActive] = useState<StepKey>('send');
 
   return (
@@ -78,7 +98,7 @@ const ControlPanel: React.FC = () => {
         </ul>
       </aside>
       <main className="cp-content">
-        <StepContent active={active} />
+        <StepContent active={active} traceCount={traceCount} isActive={isActive} />
       </main>
     </div>
   );

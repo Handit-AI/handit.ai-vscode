@@ -621,3 +621,39 @@ body {
   background-color: rgba(0, 0, 0, 0.05);
   border-color: rgba(0, 0, 0, 0.1);
 }
+
+/* Trace Counter Styles */
+.trace-counter {
+  margin: 16px 0;
+}
+
+.trace-count-active {
+  color: #4CAF50;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trace-count-inactive {
+  color: var(--vscode-editor-foreground);
+  opacity: 0.7;
+}
+
+.trace-indicator {
+  color: #4CAF50;
+  font-size: 12px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
