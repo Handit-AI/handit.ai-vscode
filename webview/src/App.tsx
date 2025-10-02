@@ -22,7 +22,7 @@ const App: React.FC = () => {
   const { fixSession } = useChat();
 
   return (
-    <div className="app">
+    <div className={`app ${view === 'panel' ? 'app--panel' : ''}`}>
       {view === 'auth' ? (
         <div className="app-main">
           <div className="app-header">

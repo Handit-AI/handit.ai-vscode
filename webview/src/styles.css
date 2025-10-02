@@ -72,10 +72,23 @@ body {
   margin: 0 auto;
 }
 
+/* Full width layout for control panel */
+.app--panel {
+  max-width: none;
+  margin: 0;
+  padding: 16px;
+}
+
 /* Vertically center the main block (header + form) */
 .app-main {
   margin: auto 0 0 0;
   padding-top: 40px;
+}
+
+/* Control panel layout - move content up */
+.app--panel .app-main {
+  margin: 0;
+  padding-top: 20px;
 }
 
 .app-header {
@@ -380,14 +393,15 @@ body {
 /* Control Panel */
 .cp-layout {
   display: grid;
-  grid-template-columns: 180px 1fr;
-  gap: 24px;
-  min-height: 60vh;
+  grid-template-columns: 200px 1fr;
+  gap: 32px;
+  min-height: 40vh;
+  width: 100%;
 }
 
 .cp-sidebar {
   border-right: 1px solid var(--vscode-input-border);
-  padding-right: 12px;
+  padding-right: 20px;
 }
 
 .cp-steps {
@@ -622,6 +636,37 @@ body {
   border-color: rgba(0, 0, 0, 0.1);
 }
 
+/* Trace Instructions Styles */
+.trace-instructions {
+  margin-bottom: 16px;
+}
+
+.what-happens-next {
+  margin-top: 8px;
+}
+
+.cp-instructions-list {
+  list-style: none;
+  margin-top: 8px;
+  padding-left: 0;
+}
+
+.cp-instructions-list li {
+  position: relative;
+  padding-left: 20px;
+  margin-bottom: 8px;
+  color: var(--vscode-editor-foreground);
+  opacity: 0.9;
+}
+
+.cp-instructions-list li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--vscode-focusBorder);
+  font-weight: bold;
+}
+
 /* Trace Counter Styles */
 .trace-counter {
   margin: 16px 0;
@@ -636,8 +681,11 @@ body {
 }
 
 .trace-count-inactive {
-  color: var(--vscode-editor-foreground);
-  opacity: 0.7;
+  color: white;
+  opacity: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .trace-indicator {
@@ -656,4 +704,14 @@ body {
   100% {
     opacity: 1;
   }
+}
+
+/* Loading spinner for trace counter */
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--vscode-input-border);
+  border-top: 2px solid var(--vscode-focusBorder);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }

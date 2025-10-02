@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 
-type StepKey = 'start' | 'send' | 'run' | 'review' | 'fixes';
+type StepKey = 'start' | 'send' | 'fixes';
 
 const steps: { key: StepKey; label: string }[] = [
-  { key: 'start', label: 'Fix My AI' },
+  { key: 'start', label: 'Fix my AI' },
   { key: 'send', label: 'Send Traces' },
-  { key: 'run', label: 'Run Evaluations' },
-  { key: 'review', label: 'Review Insights' },
   { key: 'fixes', label: 'Apply Fixes' }
 ];
 
@@ -15,19 +13,40 @@ interface ControlPanelProps {
   isActive?: boolean;
 }
 
-const StepContent: React.FC<{ active: StepKey; traceCount?: number; isActive?: boolean }> = ({ active, traceCount = 0, isActive = false }) => {
+const StepContent: React.FC<{ active: StepKey; traceCount?: number; isActive?: boolean; onStart?: () => void }> = ({ active, traceCount = 0, isActive = false, onStart }) => {
   switch (active) {
     case 'start':
       return (
         <div className="cp-card">
-          <h2 className="cp-title">Start Session</h2>
-          <p className="cp-subtext">Initialize a new evaluation session to collect traces.</p>
+          <h2 className="cp-title">Start Fixing my AI</h2>
+          <p className="cp-subtext">Handit is the AI engineer who actually fix your AI agents.</p>
+          <button className="cp-primary" onClick={onStart}>Start</button>
         </div>
       );
     case 'send':
       return (
         <div className="cp-card">
-          <h2 className="cp-title">Sending traces to Handit:</h2>
+          <h2 className="cp-title">Sending Traces:</h2>
+          
+          <div className="trace-instructions">
+            <p className="cp-subtext">
+              Please run your agent so we can detect your traces.
+            </p>
+            <p className="cp-subtext">
+              I'm now monitoring for code traces and will automatically evaluate them to identify potential issues.
+            </p>
+            
+            <div className="what-happens-next">
+              <h3 className="cp-section-title">What happens next:</h3>
+              <ul className="cp-instructions-list">
+                <li>Run your code/agent</li>
+                <li>I'll detect traces automatically</li>
+                <li>Each trace will be evaluated for issues</li>
+                <li>You can choose Apply Fixes when ready</li>
+              </ul>
+            </div>
+          </div>
+          
           <div className="trace-counter">
             <p className="cp-subtext">
               {isActive ? (
@@ -37,37 +56,15 @@ const StepContent: React.FC<{ active: StepKey; traceCount?: number; isActive?: b
                 </span>
               ) : (
                 <span className="trace-count-inactive">
-                  {traceCount} traces received
+                  <span className="loading-spinner"></span>
+                  <strong>Waiting for your traces ({traceCount} received)</strong>
                 </span>
               )}
             </p>
           </div>
           {traceCount > 0 && (
-            <button className="cp-primary">Run Evaluations</button>
+            <button className="cp-primary">Fix Issues</button>
           )}
-        </div>
-      );
-    case 'run':
-      return (
-        <div className="cp-card">
-          <h2 className="cp-title">Evaluation Summary</h2>
-          <ul className="cp-list">
-            <li className="cp-list-item"><span>model-beta-2</span><span className="cp-meta">Accuracy: 78%</span></li>
-            <li className="cp-list-item"><span>model-gamma-1</span><span className="cp-pass">Passed 92%</span></li>
-            <li className="cp-list-item"><span>tool-delta-3</span><span className="cp-pass">Passed 85%</span></li>
-          </ul>
-          <div className="cp-section">
-            <h3 className="cp-section-title">Issues</h3>
-            <p className="cp-subtext">Inconsistent output for the prompt "Generate a summary of the document"</p>
-          </div>
-          <button className="cp-primary">Review Fixes</button>
-        </div>
-      );
-    case 'review':
-      return (
-        <div className="cp-card">
-          <h2 className="cp-title">Review Insights</h2>
-          <p className="cp-subtext">Compare candidate prompts and see failure clusters.</p>
         </div>
       );
     case 'fixes':
@@ -84,7 +81,11 @@ const StepContent: React.FC<{ active: StepKey; traceCount?: number; isActive?: b
 };
 
 const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, isActive = false }) => {
-  const [active, setActive] = useState<StepKey>('send');
+  const [active, setActive] = useState<StepKey>('start');
+
+  const handleStart = () => {
+    setActive('send');
+  };
 
   return (
     <div className="cp-layout">
@@ -98,7 +99,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, isActive = 
         </ul>
       </aside>
       <main className="cp-content">
-        <StepContent active={active} traceCount={traceCount} isActive={isActive} />
+        <StepContent active={active} traceCount={traceCount} isActive={isActive} onStart={handleStart} />
       </main>
     </div>
   );

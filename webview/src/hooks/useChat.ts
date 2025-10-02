@@ -457,7 +457,7 @@ export const useChat = () => {
     if (inputValue.startsWith('/FixAI')) {
       try {
         await startFixSession();
-        const responseText = `## FixAI Session Started 🔧\n\nYour AI fix session has started! Please run your agent so we can detect your traces.\n\nI'm now monitoring for code traces and will automatically evaluate them to identify potential issues.\n\n**What happens next:**\n- Run your code/agent\n- I'll detect traces automatically\n- Each trace will be evaluated for issues\n- You can choose to continue or fix issues when ready`;
+        const responseText = `## FixAI Session Started 🔧\n\nYour AI fix session has started! Please run your agent so we can detect your traces.\n\nI'm now monitoring for code traces and will automatically evaluate them to identify potential issues.\n\n**What happens next:**\n- Run your code/agent\n- I'll detect traces automatically\n- Each trace will be evaluated for issues\n- You can choose Apply Fixes when ready`;
         
         const aiMessage: Message = {
           id: Date.now() + 1,
