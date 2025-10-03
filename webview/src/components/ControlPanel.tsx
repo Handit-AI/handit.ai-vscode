@@ -14,7 +14,7 @@ interface ControlPanelProps {
   sessionId?: string;
 }
 
-const StepContent: React.FC<{ active: StepKey; traceCount?: number; onStart?: () => void; showDone?: boolean; showEvaluating?: boolean; foundCount?: number; evaluationComplete?: boolean; showStreaming?: boolean; streamingText?: string }> = ({ active, traceCount = 0, onStart, showDone = false, showEvaluating = false, foundCount = 0, evaluationComplete = false, showStreaming = false, streamingText = '' }) => {
+const StepContent: React.FC<{ active: StepKey; traceCount?: number; onStart?: () => void; showDone?: boolean; showEvaluating?: boolean; foundCount?: number; evaluationComplete?: boolean; showStreaming?: boolean; streamingText?: string; streamingComplete?: boolean }> = ({ active, traceCount = 0, onStart, showDone = false, showEvaluating = false, foundCount = 0, evaluationComplete = false, showStreaming = false, streamingText = '', streamingComplete = false }) => {
   switch (active) {
     case 'start':
       return (
@@ -85,7 +85,7 @@ const StepContent: React.FC<{ active: StepKey; traceCount?: number; onStart?: ()
             </div>
           )}
           
-          {traceCount > 0 && (
+          {traceCount > 0 && streamingComplete && (
             <button className="cp-primary">Fix Issues</button>
           )}
         </div>
@@ -111,6 +111,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId }
   const [evaluationComplete, setEvaluationComplete] = useState(false);
   const [streamingText, setStreamingText] = useState<string>('');
   const [showStreaming, setShowStreaming] = useState(false);
+  const [streamingComplete, setStreamingComplete] = useState(false);
 
   const handleStart = () => {
     setActive('send');
@@ -137,6 +138,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId }
     });
     const fullText = parts.join('\n\n');
 
+    // Reset streaming state
+    setStreamingComplete(false);
+
     // Start streaming the text
     let currentIndex = 0;
     const streamInterval = setInterval(() => {
@@ -145,6 +149,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId }
         currentIndex++;
       } else {
         clearInterval(streamInterval);
+        setStreamingComplete(true);
       }
     }, 12); // Faster typing speed (lower = faster)
   };
@@ -237,7 +242,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId }
         </ul>
       </aside>
       <main className="cp-content">
-        <StepContent active={active} traceCount={traceCount} onStart={handleStart} showDone={showDone} showEvaluating={showEvaluating} foundCount={foundCount} evaluationComplete={evaluationComplete} showStreaming={showStreaming} streamingText={streamingText} />
+        <StepContent active={active} traceCount={traceCount} onStart={handleStart} showDone={showDone} showEvaluating={showEvaluating} foundCount={foundCount} evaluationComplete={evaluationComplete} showStreaming={showStreaming} streamingText={streamingText} streamingComplete={streamingComplete} />
       </main>
     </div>
   );
