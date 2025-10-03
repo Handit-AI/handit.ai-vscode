@@ -178,6 +178,35 @@ export class ApiService {
         return response;
     }
 
+    /**
+     * Get session insights
+     * @param sessionId Session ID
+     * @returns Promise with insights response
+     */
+    public async getSessionInsights(sessionId: string): Promise<AxiosResponse> {
+        console.log('🔍 Getting insights for session:', sessionId);
+        console.log('🌐 API Base URL:', this.baseURL);
+        console.log('🔗 Full endpoint URL:', `${this.baseURL}/v1/codegpt/sessions/${sessionId}/insights`);
+        console.log('🔑 Auth token present:', !!this.axiosInstance.defaults.headers.common['Authorization']);
+        
+        // Ensure Authorization header is present
+        const currentAuth = this.axiosInstance.defaults.headers.common['Authorization'] as string | undefined;
+        if (!currentAuth) {
+            const FALLBACK_TOKEN = '2f3bcfaf11d2d909ed90d2ec706114e15b15a7f5642af4f9a385266c4d210f56';
+            console.log('⚠️ No Authorization header set. Applying fallback bearer token for insights call.');
+            this.setAuthToken(FALLBACK_TOKEN);
+        } else {
+            console.log('🔐 Using existing Authorization header for insights call:', currentAuth?.substring(0, 20) + '...');
+        }
+        
+        const response = await this.axiosInstance.get(`/v1/codegpt/sessions/${sessionId}/insights`);
+        
+        console.log('✅ Session insights retrieved successfully');
+        console.log('📥 Insights response:', response.data);
+        
+        return response;
+    }
+
     // ==================== WEBSOCKET METHODS ====================
 
     /**

@@ -91,6 +91,13 @@ export const useChat = () => {
           active: false,
           socket: undefined
         }));
+      } else if (message.command === 'sessionCreated') {
+        console.log('🆔 Session created from VS Code:', message.sessionId);
+        setFixSession(prev => ({
+          ...prev,
+          sessionId: message.sessionId,
+          active: true
+        }));
       }
     };
 

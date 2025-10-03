@@ -669,11 +669,11 @@ body {
 
 /* Trace Counter Styles */
 .trace-counter {
-  margin: 16px 0;
+  margin: 8px 0 0 0;
 }
 
 .trace-count-active {
-  color: #4CAF50;
+  color: white;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -714,4 +714,47 @@ body {
   border-top: 2px solid var(--vscode-focusBorder);
   border-radius: 50%;
   animation: spin 1s linear infinite;
+}
+
+/* Done icon for trace counter */
+.done-icon {
+  color: #4CAF50;
+  flex-shrink: 0;
+}
+
+/* Processing text effect - character by character glow */
+.processing-text {
+  display: inline-block;
+  color: #666666; /* Gray text initially */
+  background: linear-gradient(
+    90deg,
+    #666666 0%,
+    #666666 15%,
+    #ffffff 35%,
+    #ffffff 65%,
+    #666666 85%,
+    #666666 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: textProcessing 1s linear infinite;
+}
+
+@keyframes textProcessing {
+  0% {
+    background-position: 200% 0; /* Start from right */
+  }
+  100% {
+    background-position: -200% 0; /* Move to left */
+  }
+}
+
+/* Evaluation loading styles */
+.evaluation-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 0px;
 }

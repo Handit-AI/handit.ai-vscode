@@ -271,7 +271,7 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
         style-src ${webview.cspSource} 'unsafe-inline' http://localhost:5173;
         font-src ${webview.cspSource} https: data:;
         script-src ${webview.cspSource} http://localhost:5173 'unsafe-eval';
-        connect-src ${webview.cspSource} ws://localhost:5173 http://localhost:5173;
+        connect-src ${webview.cspSource} ws://localhost:5173 http://localhost:5173 http://localhost:3001;
     ">
     <style>
         body {
@@ -319,6 +319,13 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
             console.log('✅ CodeGPT session created successfully after authentication');
             console.log('📥 Session ID:', response.data.id);
             console.log('📊 Full session response:', response.data);
+
+            // Send sessionId to webview so it can be stored in useChat
+            webview.postMessage({
+                command: 'sessionCreated',
+                sessionId: response.data.id,
+                sessionData: response.data
+            });
             
             // Show success message to user
             vscode.window.showInformationMessage(`CodeGPT session created! Session ID: ${response.data.id}`);
@@ -458,6 +465,7 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
         style-src ${webview.cspSource} 'unsafe-inline';
         font-src ${webview.cspSource} https: data:;
         script-src ${webview.cspSource};
+        connect-src ${webview.cspSource} http://localhost:3001;
     ">
     <link rel="stylesheet" href="${webviewUri}/assets/index.css">
 </head>
