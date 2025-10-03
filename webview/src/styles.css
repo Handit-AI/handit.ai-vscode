@@ -688,6 +688,17 @@ body {
   gap: 8px;
 }
 
+.trace-status-container {
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trace-count-completed {
+  color: #666666 !important; /* Gray text when completed */
+}
+
 .trace-indicator {
   color: #4CAF50;
   font-size: 12px;

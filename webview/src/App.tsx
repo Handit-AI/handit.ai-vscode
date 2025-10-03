@@ -40,7 +40,6 @@ const App: React.FC = () => {
         <div className="app-main">
           <ControlPanel 
             traceCount={fixSession.traceCount} 
-            isActive={fixSession.active}
             sessionId={fixSession.sessionId}
           />
         </div>
