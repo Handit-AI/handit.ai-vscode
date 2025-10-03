@@ -14,7 +14,7 @@ interface ControlPanelProps {
   sessionId?: string;
 }
 
-const StepContent: React.FC<{ active: StepKey; traceCount?: number; onStart?: () => void; showDone?: boolean; showEvaluating?: boolean; foundCount?: number }> = ({ active, traceCount = 0, onStart, showDone = false, showEvaluating = false, foundCount = 0 }) => {
+const StepContent: React.FC<{ active: StepKey; traceCount?: number; onStart?: () => void; showDone?: boolean; showEvaluating?: boolean; foundCount?: number; evaluationComplete?: boolean; showStreaming?: boolean; streamingText?: string }> = ({ active, traceCount = 0, onStart, showDone = false, showEvaluating = false, foundCount = 0, evaluationComplete = false, showStreaming = false, streamingText = '' }) => {
   switch (active) {
     case 'start':
       return (
@@ -64,8 +64,24 @@ const StepContent: React.FC<{ active: StepKey; traceCount?: number; onStart?: ()
           </div>
           {showEvaluating && (
             <div className="evaluation-loading">
-              <span className="loading-spinner"></span>
-              <strong className="processing-text">Evaluating and looking for issues ({foundCount} found)</strong>
+              {evaluationComplete ? (
+                <svg className="done-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
+                </svg>
+              ) : (
+                <span className="loading-spinner"></span>
+              )}
+              <strong className={evaluationComplete ? 'evaluation-complete' : 'processing-text'}>Evaluating and looking for issues ({foundCount} found)</strong>
+            </div>
+          )}
+          
+          {showStreaming && (
+            <div className="insights-streaming">
+              <div
+                className="streaming-text"
+                dangerouslySetInnerHTML={{ __html: streamingText }}
+              />
+              <span className="streaming-cursor">|</span>
             </div>
           )}
           
@@ -92,9 +108,45 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId }
   const [showDone, setShowDone] = useState(false);
   const [showEvaluating, setShowEvaluating] = useState(false);
   const [foundCount, setFoundCount] = useState<number>(0);
+  const [evaluationComplete, setEvaluationComplete] = useState(false);
+  const [streamingText, setStreamingText] = useState<string>('');
+  const [showStreaming, setShowStreaming] = useState(false);
 
   const handleStart = () => {
     setActive('send');
+  };
+
+  const startStreamingInsights = (insightsData: any[]) => {
+    if (!insightsData || insightsData.length === 0) return;
+
+    // Escape to prevent HTML injection
+    const escapeHtml = (value: string | undefined | null): string => {
+      if (value == null) return '';
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    };
+
+    // Build HTML string: bold "Problem {n}:" and plain solution, with preserved newlines
+    const parts: string[] = insightsData.map((insight, index) => {
+      const num = index + 1;
+      const problem = escapeHtml(insight.problem);
+      const solution = escapeHtml(insight.solution);
+      return `<strong>Problem ${num}:</strong>\n${problem}\n\nSolution:\n${solution}`;
+    });
+    const fullText = parts.join('\n\n');
+
+    // Start streaming the text
+    let currentIndex = 0;
+    const streamInterval = setInterval(() => {
+      if (currentIndex < fullText.length) {
+        setStreamingText(fullText.substring(0, currentIndex + 1));
+        currentIndex++;
+      } else {
+        clearInterval(streamInterval);
+      }
+    }, 12); // Faster typing speed (lower = faster)
   };
 
   // Timeline effect: traces → done icon → evaluating
@@ -137,6 +189,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId }
               const totalInsights: number = response.data?.total_insights ?? (Array.isArray(response.data?.insights) ? response.data.insights.length : 0);
               console.log('🧮 Parsed total_insights:', totalInsights);
 
+
               // Animate from current foundCount to totalInsights
               let current = 0;
               setFoundCount(0);
@@ -147,8 +200,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId }
                   setFoundCount(current);
                   if (current >= totalInsights) {
                     clearInterval(incrementTimer);
+                    setEvaluationComplete(true); // Mark evaluation as complete
+                    // Start streaming after a short delay
+                    setTimeout(() => {
+                      setShowStreaming(true);
+                      startStreamingInsights(response.data?.insights || []);
+                    }, 1000);
                   }
                 }, stepMs);
+              } else {
+                setEvaluationComplete(true); // No insights to count
               }
             })
             .catch(error => {
@@ -176,7 +237,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId }
         </ul>
       </aside>
       <main className="cp-content">
-        <StepContent active={active} traceCount={traceCount} onStart={handleStart} showDone={showDone} showEvaluating={showEvaluating} foundCount={foundCount} />
+        <StepContent active={active} traceCount={traceCount} onStart={handleStart} showDone={showDone} showEvaluating={showEvaluating} foundCount={foundCount} evaluationComplete={evaluationComplete} showStreaming={showStreaming} streamingText={streamingText} />
       </main>
     </div>
   );

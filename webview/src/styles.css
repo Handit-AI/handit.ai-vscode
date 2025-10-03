@@ -769,3 +769,35 @@ body {
   gap: 8px;
   margin-top: 0px;
 }
+
+.evaluation-complete {
+  color: #666666 !important; /* Gray text when evaluation is complete */
+}
+
+/* Insights streaming styles */
+.insights-streaming {
+  margin-top: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.streaming-text {
+  color: #ffffff;
+  line-height: 1.6;
+  font-size: 14px;
+  white-space: pre-wrap;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+}
+
+.streaming-cursor {
+  animation: blink 1s infinite;
+  color: #00ff88;
+  font-weight: bold;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
