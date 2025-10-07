@@ -49,6 +49,12 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
                     case 'showMessage':
                         vscode.window.showInformationMessage(message.text);
                         return;
+                    case 'showInformationMessage':
+                        vscode.window.showInformationMessage(message.message);
+                        return;
+                    case 'showErrorMessage':
+                        vscode.window.showErrorMessage(message.message);
+                        return;
                 }
             },
             undefined,
@@ -414,6 +420,17 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
                     }
                     
                     vscode.window.showInformationMessage('New run completed! Check console for details.');
+                },
+                onModelLogPreview: (previewText: string) => {
+                    // Relay a short preview down to the webview to show under the trace counter
+                    try {
+                        webview.postMessage({
+                            command: 'modelLogPreview',
+                            preview: previewText
+                        });
+                    } catch (e) {
+                        console.error('❌ Failed to post modelLogPreview to webview:', e);
+                    }
                 },
                 onSessionUpdated: (data) => {
                     console.log('🔄 Session updated notification received!');

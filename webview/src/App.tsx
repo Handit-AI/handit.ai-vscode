@@ -41,6 +41,7 @@ const App: React.FC = () => {
           <ControlPanel 
             traceCount={fixSession.traceCount} 
             sessionId={fixSession.sessionId}
+            previewTexts={fixSession.previewTexts}
           />
         </div>
       )}

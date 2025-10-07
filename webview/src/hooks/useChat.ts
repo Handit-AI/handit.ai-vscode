@@ -39,11 +39,13 @@ export const useChat = () => {
     insights?: any[];
     isApplyingFixes?: boolean;
     showFixButton?: boolean;
+    previewTexts?: string[];
   }>({
     active: false,
     traceCount: 0,
     runs: [],
-    showFixButton: true
+    showFixButton: true,
+    previewTexts: []
   });
 
   // Listen for messages from VS Code extension
@@ -76,6 +78,15 @@ export const useChat = () => {
             runs: [...prev.runs, message.traceData]
           };
         });
+      } else if (message.command === 'modelLogPreview') {
+        // Append preview text in a list to show under the trace counter
+        const previewText: string = message.preview || '';
+        if (previewText) {
+          setFixSession(prev => ({
+            ...prev,
+            previewTexts: [...(prev.previewTexts || []), previewText]
+          }));
+        }
       } else if (message.command === 'socketConnected') {
         console.log('🔌 Socket connected from VS Code:', message);
         setFixSession(prev => ({

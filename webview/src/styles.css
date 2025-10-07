@@ -447,6 +447,7 @@ body {
 
 .cp-subtext {
   opacity: 0.9;
+  margin: 0;
 }
 
 .cp-primary {
@@ -800,4 +801,120 @@ body {
 @keyframes blink {
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
+}
+
+/* Optimization streaming styles */
+.optimization-streaming {
+  margin-top: 0px;
+  padding: 0px;
+  background: transparent;
+  border-radius: 0px;
+  border: none;
+  min-height: calc(100vh - 200px);
+  overflow-y: visible;
+}
+
+.optimization-result {
+  margin-bottom: 0px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  border: none;
+}
+
+.optimization-result:last-child {
+  margin-bottom: 0;
+}
+
+.optimization-title {
+  color: var(--vscode-focusBorder);
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
+}
+
+.prompt-section {
+  margin-bottom: 0px;
+  margin-top: 0px;
+}
+
+.prompt-section:first-child {
+  margin-top: 0;
+}
+
+.prompt-section:last-child {
+  margin-bottom: 0;
+}
+
+.prompt-label {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 0px;
+  opacity: 1;
+}
+
+.prompt-section:not(:first-child) .prompt-label {
+  margin-top: 16px;
+}
+
+.prompt-content {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--vscode-editor-foreground);
+  min-height: 100px;
+  overflow-y: visible;
+}
+
+.original-prompt {
+  border-left: 3px solid #ff6b6b;
+}
+
+.optimized-prompt {
+  border-left: 3px solid #4CAF50;
+}
+
+.optimization-complete {
+  margin-top: 16px;
+  padding: 0px;
+  background: transparent;
+  border: none;
+  border-radius: 0px;
+  text-align: left;
+}
+
+.optimization-complete .cp-subtext {
+  color: #4CAF50;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+/* Light theme overrides for optimization streaming */
+.vscode-light .optimization-streaming {
+  background: transparent;
+  border: none;
+}
+
+.vscode-light .optimization-result {
+  background: transparent;
+  border: none;
+}
+
+.vscode-light .prompt-content {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.vscode-light .optimization-complete {
+  background: transparent;
+  border: none;
 }

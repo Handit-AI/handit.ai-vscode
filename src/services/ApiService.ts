@@ -179,6 +179,35 @@ export class ApiService {
     }
 
     /**
+     * Apply session insights
+     * @param sessionId Session ID
+     * @returns Promise with apply insights response
+     */
+    public async applySessionInsights(sessionId: string): Promise<AxiosResponse> {
+        console.log('🔧 Applying insights for session:', sessionId);
+        console.log('🌐 API Base URL:', this.baseURL);
+        console.log('🔗 Full endpoint URL:', `${this.baseURL}/v1/codegpt/sessions/${sessionId}/apply-insights`);
+        console.log('🔑 Auth token present:', !!this.axiosInstance.defaults.headers.common['Authorization']);
+        
+        // Ensure Authorization header is present
+        const currentAuth = this.axiosInstance.defaults.headers.common['Authorization'] as string | undefined;
+        if (!currentAuth) {
+            const FALLBACK_TOKEN = '2f3bcfaf11d2d909ed90d2ec706114e15b15a7f5642af4f9a385266c4d210f56';
+            console.log('⚠️ No Authorization header set. Applying fallback bearer token for apply-insights call.');
+            this.setAuthToken(FALLBACK_TOKEN);
+        } else {
+            console.log('🔐 Using existing Authorization header for apply-insights call:', currentAuth?.substring(0, 20) + '...');
+        }
+        
+        const response = await this.axiosInstance.post(`/v1/codegpt/sessions/${sessionId}/apply-insights`, {});
+        
+        console.log('✅ Session insights applied successfully');
+        console.log('📥 Apply insights response:', response.data);
+        
+        return response;
+    }
+
+    /**
      * Get session insights
      * @param sessionId Session ID
      * @returns Promise with insights response
@@ -251,6 +280,7 @@ export class ApiService {
             onRunCompleted?: (data: any) => void;
             onSessionUpdated?: (data: any) => void;
             onError?: (error: any) => void;
+            onModelLogPreview?: (previewText: string) => void;
         } = {}
     ): Promise<Socket> {
         try {
@@ -368,6 +398,33 @@ export class ApiService {
                     console.log('🎯 Track run detected:', run);
                     console.log('📊 Run action:', run.action);
                     console.log('📊 Run data:', run);
+                    // If the backend provided a model_log_id, fetch its details
+                    const modelLogId = (run as any)?.model_log_id ?? (run as any)?.output?.model_log_id;
+                    if (modelLogId) {
+                        (async () => {
+                            try {
+                                const TOKEN = '2f3bcfaf11d2d909ed90d2ec706114e15b15a7f5642af4f9a385266c4d210f56';
+                                const response = await this.axiosInstance.get(`/model-logs/${modelLogId}`, {
+                                    headers: { Authorization: `Bearer ${TOKEN}` }
+                                });
+                                console.log('🧾 Model log response:', response.data);
+
+                                // Try to extract the first 50 chars of system role content
+                                const messages = response.data?.input?.messages;
+                                if (Array.isArray(messages)) {
+                                    const systemMsg = messages.find((m: any) => m?.role === 'system' && typeof m?.content === 'string');
+                                    if (systemMsg?.content) {
+                                        const preview = String(systemMsg.content).slice(0, 50) + (systemMsg.content.length > 50 ? '...' : '');
+                                        if (callbacks.onModelLogPreview) {
+                                            callbacks.onModelLogPreview(preview);
+                                        }
+                                    }
+                                }
+                            } catch (err) {
+                                console.error('❌ Error fetching model log:', err);
+                            }
+                        })();
+                    }
                 }
                 
                 // Call the onRunCompleted callback if provided
@@ -432,6 +489,33 @@ export class ApiService {
                 const run = data.run;
                 if (run && run.action === 'track') {
                     console.log('🎯 Track run detected - Action:', run.action, '| Status:', run.status);
+                    // If the backend provided a model_log_id, fetch its details
+                    const modelLogId = (run as any)?.model_log_id ?? (run as any)?.output?.model_log_id;
+                    if (modelLogId) {
+                        (async () => {
+                            try {
+                                const TOKEN = '2f3bcfaf11d2d909ed90d2ec706114e15b15a7f5642af4f9a385266c4d210f56';
+                                const response = await this.axiosInstance.get(`/model-logs/${modelLogId}`, {
+                                    headers: { Authorization: `Bearer ${TOKEN}` }
+                                });
+                                console.log('🧾 Model log response:', response.data);
+
+                                // Try to extract the first 50 chars of system role content
+                                const messages = response.data?.input?.messages;
+                                if (Array.isArray(messages)) {
+                                    const systemMsg = messages.find((m: any) => m?.role === 'system' && typeof m?.content === 'string');
+                                    if (systemMsg?.content) {
+                                        const preview = String(systemMsg.content).slice(0, 50) + (systemMsg.content.length > 50 ? '...' : '');
+                                        if (callbacks.onModelLogPreview) {
+                                            callbacks.onModelLogPreview(preview);
+                                        }
+                                    }
+                                }
+                            } catch (err) {
+                                console.error('❌ Error fetching model log:', err);
+                            }
+                        })();
+                    }
                 }
                 
                 // Call the onRunCompleted callback if provided

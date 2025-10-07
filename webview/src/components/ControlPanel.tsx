@@ -12,9 +12,10 @@ const steps: { key: StepKey; label: string }[] = [
 interface ControlPanelProps {
   traceCount?: number;
   sessionId?: string;
+  previewTexts?: string[];
 }
 
-const StepContent: React.FC<{ active: StepKey; traceCount?: number; onStart?: () => void; showDone?: boolean; showEvaluating?: boolean; foundCount?: number; evaluationComplete?: boolean; showStreaming?: boolean; streamingText?: string; streamingComplete?: boolean }> = ({ active, traceCount = 0, onStart, showDone = false, showEvaluating = false, foundCount = 0, evaluationComplete = false, showStreaming = false, streamingText = '', streamingComplete = false }) => {
+const StepContent: React.FC<{ active: StepKey; traceCount?: number; previewTexts?: string[]; onStart?: () => void; onFixIssues?: () => void; showDone?: boolean; showEvaluating?: boolean; foundCount?: number; evaluationComplete?: boolean; showStreaming?: boolean; streamingText?: string; streamingComplete?: boolean; showApplyFixesStreaming?: boolean; applyFixesStreamingText?: string; applyFixesStreamingComplete?: boolean; showApplyFixesProcessing?: boolean; onCopyOptimizedPrompt?: () => void }> = ({ active, traceCount = 0, previewTexts = [], onStart, onFixIssues, showDone = false, showEvaluating = false, foundCount = 0, evaluationComplete = false, showStreaming = false, streamingText = '', streamingComplete = false, showApplyFixesStreaming = false, applyFixesStreamingText = '', applyFixesStreamingComplete = false, showApplyFixesProcessing = false, onCopyOptimizedPrompt }) => {
   switch (active) {
     case 'start':
       return (
@@ -62,6 +63,12 @@ const StepContent: React.FC<{ active: StepKey; traceCount?: number; onStart?: ()
               </span>
             </p>
           </div>
+
+          {previewTexts && previewTexts.length > 0 && (
+            <div className="evaluation-loading" style={{ marginLeft: 24, marginTop: -4 }}>
+              <strong className={showDone ? 'evaluation-complete' : 'processing-text'}>{previewTexts[0]}</strong>
+            </div>
+          )}
           {showEvaluating && (
             <div className="evaluation-loading">
               {evaluationComplete ? (
@@ -86,16 +93,40 @@ const StepContent: React.FC<{ active: StepKey; traceCount?: number; onStart?: ()
           )}
           
           {traceCount > 0 && streamingComplete && (
-            <button className="cp-primary">Fix Issues</button>
+            <button className="cp-primary" onClick={onFixIssues}>Fix Issues</button>
           )}
         </div>
       );
     case 'fixes':
       return (
         <div className="cp-card">
-          <h2 className="cp-title">Apply Fixes</h2>
-          <p className="cp-subtext">Generate suggestions and apply them to your workflow.</p>
-          <button className="cp-primary">Apply Selected Fixes</button>
+          <h2 className="cp-title">
+            {showApplyFixesProcessing ? (
+              <span className="processing-text">Processing...</span>
+            ) : (
+              "Apply Fixes"
+            )}
+          </h2>
+          
+          {!showApplyFixesProcessing && (
+            <p className="cp-subtext">Your prompt has been optimized! Here are the improvements:</p>
+          )}
+          
+          {showApplyFixesStreaming && (
+            <div className="optimization-streaming">
+              <div
+                className="streaming-text"
+                dangerouslySetInnerHTML={{ __html: applyFixesStreamingText }}
+              />
+              <span className="streaming-cursor">|</span>
+            </div>
+          )}
+          
+          {applyFixesStreamingComplete && (
+            <div className="optimization-complete">
+              <button className="cp-primary" onClick={onCopyOptimizedPrompt}>Copy Optimized Prompt</button>
+            </div>
+          )}
         </div>
       );
     default:
@@ -103,7 +134,7 @@ const StepContent: React.FC<{ active: StepKey; traceCount?: number; onStart?: ()
   }
 };
 
-const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId }) => {
+const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId, previewTexts = [] }) => {
   const [active, setActive] = useState<StepKey>('start');
   const [showDone, setShowDone] = useState(false);
   const [showEvaluating, setShowEvaluating] = useState(false);
@@ -112,9 +143,77 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId }
   const [streamingText, setStreamingText] = useState<string>('');
   const [showStreaming, setShowStreaming] = useState(false);
   const [streamingComplete, setStreamingComplete] = useState(false);
+  const [applyFixesStreamingText, setApplyFixesStreamingText] = useState<string>('');
+  const [showApplyFixesStreaming, setShowApplyFixesStreaming] = useState(false);
+  const [applyFixesStreamingComplete, setApplyFixesStreamingComplete] = useState(false);
+  const [showApplyFixesProcessing, setShowApplyFixesProcessing] = useState(false);
+  const [optimizedPromptContent, setOptimizedPromptContent] = useState<string>('');
 
   const handleStart = () => {
     setActive('send');
+  };
+
+  const handleCopyOptimizedPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(optimizedPromptContent);
+      
+      // Send message to VS Code extension to show notification
+      if (window.vscode) {
+        window.vscode.postMessage({
+          command: 'showInformationMessage',
+          message: 'Optimized Prompt Copied!'
+        });
+      } else {
+        console.log('Optimized Prompt Copied!');
+      }
+    } catch (error) {
+      console.error('Error copying optimized prompt:', error);
+      if (window.vscode) {
+        window.vscode.postMessage({
+          command: 'showErrorMessage',
+          message: 'Failed to copy optimized prompt'
+        });
+      } else {
+        console.error('Failed to copy optimized prompt');
+      }
+    }
+  };
+
+  const handleFixIssues = async () => {
+    if (!sessionId) {
+      console.error('❌ No sessionId available for apply insights call');
+      return;
+    }
+
+    // Navigate immediately to Apply Fixes step
+    setActive('fixes');
+    setShowApplyFixesProcessing(true);
+
+    try {
+      console.log('🔧 Calling apply insights API...');
+      const response = await apiService.applySessionInsights(sessionId);
+      console.log('🎉 SUCCESS! Apply insights API response:', response.data);
+      console.log('📊 Response status:', response.status);
+      
+      // Check if response contains optimizedPrompt
+      const responseData = response.data;
+      const hasOptimizedPrompts = Array.isArray(responseData) && 
+        responseData.some((item: any) => item.optimizedPrompt && item.optimizationApplied);
+      
+      if (hasOptimizedPrompts) {
+        console.log('✨ Found optimized prompts, starting streaming');
+        // Stop processing effect and start streaming
+        setShowApplyFixesProcessing(false);
+        startStreamingOptimizedPrompts(responseData);
+      } else {
+        console.log('ℹ️ No optimized prompts found in response');
+        setShowApplyFixesProcessing(false);
+      }
+    } catch (error) {
+      console.error('💥 ERROR calling apply insights API:', error);
+      console.error('💥 Error message:', error instanceof Error ? error.message : 'Unknown error');
+      setShowApplyFixesProcessing(false);
+    }
   };
 
   const startStreamingInsights = (insightsData: any[]) => {
@@ -152,6 +251,64 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId }
         setStreamingComplete(true);
       }
     }, 12); // Faster typing speed (lower = faster)
+  };
+
+  const startStreamingOptimizedPrompts = (optimizationResults: any[]) => {
+    if (!optimizationResults || optimizationResults.length === 0) return;
+
+    // Filter only successful optimizations with optimizedPrompt
+    const validResults = optimizationResults.filter((item: any) => 
+      item.status === 'success' && 
+      item.optimizationApplied && 
+      item.optimizedPrompt && 
+      item.originalPrompt
+    );
+
+    if (validResults.length === 0) {
+      console.log('ℹ️ No valid optimization results found for streaming');
+      return;
+    }
+
+    console.log('🎬 Starting optimized prompts streaming for', validResults.length, 'results');
+
+    // Escape to prevent HTML injection
+    const escapeHtml = (value: string | undefined | null): string => {
+      if (value == null) return '';
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    };
+
+    // Store the optimized prompt content for copying
+    const firstOptimizedPrompt = validResults[0]?.optimizedPrompt || '';
+    setOptimizedPromptContent(firstOptimizedPrompt);
+
+    // Build HTML string for each optimization result
+    const parts: string[] = validResults.map((result) => {
+      const originalPrompt = escapeHtml(result.originalPrompt);
+      const optimizedPrompt = escapeHtml(result.optimizedPrompt);
+      
+      return `<div class="optimization-result"><div class="prompt-section"><h4 class="prompt-label">Original Prompt:</h4><div class="prompt-content original-prompt">${originalPrompt}</div></div><div class="prompt-section"><h4 class="prompt-label">Optimized Prompt:</h4><div class="prompt-content optimized-prompt">${optimizedPrompt}</div></div></div>`;
+    });
+
+    const fullText = parts.join('');
+
+    // Reset streaming state
+    setApplyFixesStreamingComplete(false);
+    setShowApplyFixesStreaming(true);
+
+    // Start streaming the text
+    let currentIndex = 0;
+    const streamInterval = setInterval(() => {
+      if (currentIndex < fullText.length) {
+        setApplyFixesStreamingText(fullText.substring(0, currentIndex + 1));
+        currentIndex++;
+      } else {
+        clearInterval(streamInterval);
+        setApplyFixesStreamingComplete(true);
+      }
+    }, 8); // Slightly faster typing speed for better UX
   };
 
   // Timeline effect: traces → done icon → evaluating
@@ -242,7 +399,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId }
         </ul>
       </aside>
       <main className="cp-content">
-        <StepContent active={active} traceCount={traceCount} onStart={handleStart} showDone={showDone} showEvaluating={showEvaluating} foundCount={foundCount} evaluationComplete={evaluationComplete} showStreaming={showStreaming} streamingText={streamingText} streamingComplete={streamingComplete} />
+        <StepContent active={active} traceCount={traceCount} previewTexts={previewTexts} onStart={handleStart} onFixIssues={handleFixIssues} showDone={showDone} showEvaluating={showEvaluating} foundCount={foundCount} evaluationComplete={evaluationComplete} showStreaming={showStreaming} streamingText={streamingText} streamingComplete={streamingComplete} showApplyFixesStreaming={showApplyFixesStreaming} applyFixesStreamingText={applyFixesStreamingText} applyFixesStreamingComplete={applyFixesStreamingComplete} showApplyFixesProcessing={showApplyFixesProcessing} onCopyOptimizedPrompt={handleCopyOptimizedPrompt} />
       </main>
     </div>
   );
