@@ -83,13 +83,16 @@ const StepContent: React.FC<{ active: StepKey; traceCount?: number; previewTexts
           )}
           
           {showStreaming && (
-            <div className="insights-streaming">
+            <>
+              <h3 className="cp-section-title">These are the issues Handit detected in your agent’s run</h3>
+              <div className="insights-streaming">
               <div
                 className="streaming-text"
                 dangerouslySetInnerHTML={{ __html: streamingText }}
               />
               <span className="streaming-cursor">|</span>
-            </div>
+              </div>
+            </>
           )}
           
           {traceCount > 0 && streamingComplete && (
