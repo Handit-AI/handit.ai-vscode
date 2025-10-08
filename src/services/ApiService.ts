@@ -409,12 +409,12 @@ export class ApiService {
                                 });
                                 console.log('🧾 Model log response:', response.data);
 
-                                // Try to extract the first 50 chars of system role content
+                                // Try to extract the first 100 chars of system role content
                                 const messages = response.data?.input?.messages;
                                 if (Array.isArray(messages)) {
                                     const systemMsg = messages.find((m: any) => m?.role === 'system' && typeof m?.content === 'string');
                                     if (systemMsg?.content) {
-                                        const preview = String(systemMsg.content).slice(0, 50) + (systemMsg.content.length > 50 ? '...' : '');
+                                        const preview = String(systemMsg.content).slice(0, 100) + (systemMsg.content.length > 100 ? '...' : '');
                                         if (callbacks.onModelLogPreview) {
                                             callbacks.onModelLogPreview(preview);
                                         }
@@ -500,12 +500,12 @@ export class ApiService {
                                 });
                                 console.log('🧾 Model log response:', response.data);
 
-                                // Try to extract the first 50 chars of system role content
+                                // Try to extract the first 100 chars of system role content
                                 const messages = response.data?.input?.messages;
                                 if (Array.isArray(messages)) {
                                     const systemMsg = messages.find((m: any) => m?.role === 'system' && typeof m?.content === 'string');
                                     if (systemMsg?.content) {
-                                        const preview = String(systemMsg.content).slice(0, 50) + (systemMsg.content.length > 50 ? '...' : '');
+                                        const preview = String(systemMsg.content).slice(0, 100) + (systemMsg.content.length > 100 ? '...' : '');
                                         if (callbacks.onModelLogPreview) {
                                             callbacks.onModelLogPreview(preview);
                                         }

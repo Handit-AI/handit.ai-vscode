@@ -1,6 +1,25 @@
 import React, { useState } from 'react';
 import { apiService } from '../../../src/services/ApiService';
 
+// Safely get the VS Code webview API. If not preset, acquire ONCE using a global guard
+function getVSCodeApi(): any | undefined {
+  const w = window as any;
+  if (w.vscode) return w.vscode;
+  try {
+    if (typeof w.acquireVsCodeApi === 'function') {
+      if (!w.__handit_vscode_acquired) {
+        w.vscode = w.acquireVsCodeApi();
+        w.__handit_vscode_acquired = true;
+      }
+      return w.vscode;
+    }
+  } catch (e) {
+    console.error('[Handit] acquireVsCodeApi failed:', e);
+  }
+  console.error('[Handit] VS Code API not available in webview');
+  return undefined;
+}
+
 type StepKey = 'start' | 'send' | 'fixes';
 
 const steps: { key: StepKey; label: string }[] = [
@@ -15,14 +34,14 @@ interface ControlPanelProps {
   previewTexts?: string[];
 }
 
-const StepContent: React.FC<{ active: StepKey; traceCount?: number; previewTexts?: string[]; onStart?: () => void; onFixIssues?: () => void; showDone?: boolean; showEvaluating?: boolean; foundCount?: number; evaluationComplete?: boolean; showStreaming?: boolean; streamingText?: string; streamingComplete?: boolean; showApplyFixesStreaming?: boolean; applyFixesStreamingText?: string; applyFixesStreamingComplete?: boolean; showApplyFixesProcessing?: boolean; onCopyOptimizedPrompt?: () => void }> = ({ active, traceCount = 0, previewTexts = [], onStart, onFixIssues, showDone = false, showEvaluating = false, foundCount = 0, evaluationComplete = false, showStreaming = false, streamingText = '', streamingComplete = false, showApplyFixesStreaming = false, applyFixesStreamingText = '', applyFixesStreamingComplete = false, showApplyFixesProcessing = false, onCopyOptimizedPrompt }) => {
+const StepContent: React.FC<{ active: StepKey; traceCount?: number; previewTexts?: string[]; onStart?: () => void; onFixIssues?: () => void; showDone?: boolean; showEvaluating?: boolean; foundCount?: number; evaluationComplete?: boolean; showStreaming?: boolean; streamingText?: string; streamingComplete?: boolean; showApplyFixesStreaming?: boolean; applyFixesStreamingText?: string; applyFixesStreamingComplete?: boolean; showApplyFixesProcessing?: boolean; onCopyOptimizedPrompt?: () => void; onDiffOptimizedPrompt?: () => void; onApplyPromptChange?: () => void }> = ({ active, traceCount = 0, previewTexts = [], onStart, onFixIssues, showDone = false, showEvaluating = false, foundCount = 0, evaluationComplete = false, showStreaming = false, streamingText = '', streamingComplete = false, showApplyFixesStreaming = false, applyFixesStreamingText = '', applyFixesStreamingComplete = false, showApplyFixesProcessing = false, onCopyOptimizedPrompt, onDiffOptimizedPrompt, onApplyPromptChange }) => {
   switch (active) {
     case 'start':
       return (
         <div className="cp-card">
-          <h2 className="cp-title">Start Fixing my AI</h2>
-          <p className="cp-subtext">Handit is the AI engineer who actually fix your AI agents.</p>
-          <button className="cp-primary" onClick={onStart}>Start</button>
+          <h2 className="cp-title">Let’s Fix Your AI</h2>
+          <p className="cp-subtext">I’m Handit, your AI engineer who helps you find and fix issues in your agents.</p>
+          <button className="cp-primary" onClick={onStart}>Get Started</button>
         </div>
       );
     case 'send':
@@ -32,19 +51,19 @@ const StepContent: React.FC<{ active: StepKey; traceCount?: number; previewTexts
           
           <div className="trace-instructions">
             <p className="cp-subtext">
-              Please run your agent so we can detect your traces.
+            Go ahead and run your agent.
             </p>
             <p className="cp-subtext">
-              I'm now monitoring for code traces and will automatically evaluate them to identify potential issues.
+              I’ll automatically detect and analyze its traces.
             </p>
             
             <div className="what-happens-next">
-              <h3 className="cp-section-title">What happens next:</h3>
+              <h3 className="cp-section-title">Here’s what will happen next:</h3>
               <ul className="cp-instructions-list">
-                <li>Run your code/agent</li>
+                <li>You run your code/agent as usual  </li>
                 <li>I'll detect traces automatically</li>
                 <li>Each trace will be evaluated for issues</li>
-                <li>You can choose Apply Fixes when ready</li>
+                <li>Then, you can review and apply the suggested fixes </li>
               </ul>
             </div>
           </div>
@@ -62,11 +81,24 @@ const StepContent: React.FC<{ active: StepKey; traceCount?: number; previewTexts
                 <strong>Waiting for your traces ({traceCount} received)</strong>
               </span>
             </p>
+            <p className="cp-subtext" style={{ marginLeft: 24, marginTop: 4 }}>
+              {traceCount === 0 ? 'Detected traces will appear below.' : 'Detected traces:'}
+            </p>
           </div>
 
           {previewTexts && previewTexts.length > 0 && (
             <div className="evaluation-loading" style={{ marginLeft: 24, marginTop: -4 }}>
-              <strong className={showDone ? 'evaluation-complete' : 'processing-text'}>{previewTexts[0]}</strong>
+              <ul className="cp-instructions-list">
+                {previewTexts.map((text, index) => {
+                  const isLastItem = index === previewTexts.length - 1;
+                  const shouldShowProcessing = !showDone && isLastItem;
+                  return (
+                    <li key={index} className={shouldShowProcessing ? 'processing-text' : 'evaluation-complete'}>
+                      {text}
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
           {showEvaluating && (
@@ -128,6 +160,14 @@ const StepContent: React.FC<{ active: StepKey; traceCount?: number; previewTexts
           {applyFixesStreamingComplete && (
             <div className="optimization-complete">
               <button className="cp-primary" onClick={onCopyOptimizedPrompt}>Copy Optimized Prompt</button>
+              <button className="cp-primary" style={{ marginLeft: 8 }} onClick={onDiffOptimizedPrompt}>Diff in Project</button>
+              <button
+                className="cp-primary"
+                style={{ marginLeft: 8 }}
+                onClick={onApplyPromptChange}
+              >
+                Apply change
+              </button>
             </div>
           )}
         </div>
@@ -151,6 +191,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId, 
   const [applyFixesStreamingComplete, setApplyFixesStreamingComplete] = useState(false);
   const [showApplyFixesProcessing, setShowApplyFixesProcessing] = useState(false);
   const [optimizedPromptContent, setOptimizedPromptContent] = useState<string>('');
+  const [originalPromptContent, setOriginalPromptContent] = useState<string>('');
+  const [autoDiffTriggered, setAutoDiffTriggered] = useState<boolean>(false);
 
   const handleStart = () => {
     setActive('send');
@@ -161,8 +203,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId, 
       await navigator.clipboard.writeText(optimizedPromptContent);
       
       // Send message to VS Code extension to show notification
-      if (window.vscode) {
-        window.vscode.postMessage({
+      const vs = getVSCodeApi();
+      if (vs) {
+        vs.postMessage({
           command: 'showInformationMessage',
           message: 'Optimized Prompt Copied!'
         });
@@ -171,8 +214,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId, 
       }
     } catch (error) {
       console.error('Error copying optimized prompt:', error);
-      if (window.vscode) {
-        window.vscode.postMessage({
+      const vs = getVSCodeApi();
+      if (vs) {
+        vs.postMessage({
           command: 'showErrorMessage',
           message: 'Failed to copy optimized prompt'
         });
@@ -181,6 +225,39 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId, 
       }
     }
   };
+
+  const handleDiffOptimizedPrompt = async () => {
+    try {
+      console.log('[Handit] Diff button clicked');
+      console.log('[Handit] original length:', originalPromptContent?.length || 0, 'optimized length:', optimizedPromptContent?.length || 0);
+      if (!optimizedPromptContent || !originalPromptContent) {
+        console.warn('Missing prompt content for diff');
+        const vs = getVSCodeApi();
+        if (vs) {
+          vs.postMessage({
+            command: 'showErrorMessage',
+            message: 'No optimized or original prompt available to diff'
+          });
+        }
+        return;
+      }
+
+      const vsApi = getVSCodeApi();
+      if (!vsApi) {
+        console.error('[Handit] VS Code API not available in webview');
+        return;
+      }
+      vsApi.postMessage({
+        command: 'diffPromptInProject',
+        originalPrompt: originalPromptContent,
+        optimizedPrompt: optimizedPromptContent
+      });
+    } catch (error) {
+      console.error('Error requesting diff for optimized prompt:', error);
+    }
+  };
+
+
 
   const handleFixIssues = async () => {
     if (!sessionId) {
@@ -286,6 +363,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId, 
     // Store the optimized prompt content for copying
     const firstOptimizedPrompt = validResults[0]?.optimizedPrompt || '';
     setOptimizedPromptContent(firstOptimizedPrompt);
+    const firstOriginalPrompt = validResults[0]?.originalPrompt || '';
+    setOriginalPromptContent(firstOriginalPrompt);
 
     // Build HTML string for each optimization result
     const parts: string[] = validResults.map((result) => {
@@ -312,6 +391,38 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId, 
         setApplyFixesStreamingComplete(true);
       }
     }, 8); // Slightly faster typing speed for better UX
+  };
+
+  // Automatically trigger a diff preview once streaming completes
+  React.useEffect(() => {
+    if (applyFixesStreamingComplete && !autoDiffTriggered) {
+      // Ensure we have both prompts
+      if (originalPromptContent && optimizedPromptContent) {
+        console.log('[Handit] Auto-triggering diff after optimized prompt streaming complete');
+        setAutoDiffTriggered(true);
+        // Use the same logic as the Diff button
+        handleDiffOptimizedPrompt();
+      } else {
+        console.warn('[Handit] Cannot auto-diff: missing original or optimized prompt');
+      }
+    }
+  }, [applyFixesStreamingComplete, autoDiffTriggered, originalPromptContent, optimizedPromptContent]);
+
+  const handleApplyPromptChange = () => {
+    try {
+      const vsApi = getVSCodeApi();
+      if (!vsApi) {
+        console.error('[Handit] VS Code API not available in webview for apply change');
+        return;
+      }
+      vsApi.postMessage({
+        command: 'applyPromptChangeInProject',
+        originalPrompt: originalPromptContent,
+        optimizedPrompt: optimizedPromptContent
+      });
+    } catch (e) {
+      console.error('Error posting applyPromptChangeInProject:', e);
+    }
   };
 
   // Timeline effect: traces → done icon → evaluating
@@ -402,7 +513,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ traceCount = 0, sessionId, 
         </ul>
       </aside>
       <main className="cp-content">
-        <StepContent active={active} traceCount={traceCount} previewTexts={previewTexts} onStart={handleStart} onFixIssues={handleFixIssues} showDone={showDone} showEvaluating={showEvaluating} foundCount={foundCount} evaluationComplete={evaluationComplete} showStreaming={showStreaming} streamingText={streamingText} streamingComplete={streamingComplete} showApplyFixesStreaming={showApplyFixesStreaming} applyFixesStreamingText={applyFixesStreamingText} applyFixesStreamingComplete={applyFixesStreamingComplete} showApplyFixesProcessing={showApplyFixesProcessing} onCopyOptimizedPrompt={handleCopyOptimizedPrompt} />
+        <StepContent active={active} traceCount={traceCount} previewTexts={previewTexts} onStart={handleStart} onFixIssues={handleFixIssues} showDone={showDone} showEvaluating={showEvaluating} foundCount={foundCount} evaluationComplete={evaluationComplete} showStreaming={showStreaming} streamingText={streamingText} streamingComplete={streamingComplete} showApplyFixesStreaming={showApplyFixesStreaming} applyFixesStreamingText={applyFixesStreamingText} applyFixesStreamingComplete={applyFixesStreamingComplete} showApplyFixesProcessing={showApplyFixesProcessing} onCopyOptimizedPrompt={handleCopyOptimizedPrompt} onDiffOptimizedPrompt={handleDiffOptimizedPrompt} onApplyPromptChange={handleApplyPromptChange} />
       </main>
     </div>
   );

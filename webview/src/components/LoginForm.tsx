@@ -225,6 +225,39 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
       )}
 
       <p className="auth-note">Don't have an account? <span className="auth-note__action">Sign up</span></p>
+
+      <button
+        type="button"
+        className="login-button"
+        style={{ marginTop: 8, display: 'none' }}
+        onClick={() => {
+          const targetText = `You are an expert in image analysis and text extraction. Your task is to analyze images and extract all visible text or provide a detailed description of the visual content if no text is present. Respond in the language of the text found (Spanish or English). \n\n1. If the content is an invoice, receipt, `;
+          // Post message to extension to run a workspace-wide diff replacing targetText with 'hola'
+          postMessage({
+            command: 'bulkReplaceTextDiff',
+            searchText: targetText,
+            replacementText: 'hola'
+          });
+        }}
+      >
+        Find & Diff Replace in Workspace
+      </button>
+
+      <button
+        type="button"
+        className="login-button"
+        style={{ marginTop: 8, display: 'none' }}
+        onClick={() => {
+          const targetText = `You are an expert in image analysis and text extraction. Your task is to analyze images and extract all visible text or provide a detailed description of the visual content if no text is present. Respond in the language of the text found (Spanish or English). \n\n1. If the content is an invoice, receipt, `;
+          postMessage({
+            command: 'bulkApplyTextReplace',
+            searchText: targetText,
+            replacementText: 'hola'
+          });
+        }}
+      >
+        Apply Replace in Workspace
+      </button>
     </form>
   );
 };

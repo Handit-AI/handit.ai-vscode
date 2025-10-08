@@ -639,11 +639,11 @@ body {
 
 /* Trace Instructions Styles */
 .trace-instructions {
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .what-happens-next {
-  margin-top: 8px;
+  margin-top: 16px;
 }
 
 .cp-instructions-list {
@@ -670,7 +670,7 @@ body {
 
 /* Trace Counter Styles */
 .trace-counter {
-  margin: 8px 0 0 0;
+  margin: 0px 0 0 0;
 }
 
 .trace-count-active {

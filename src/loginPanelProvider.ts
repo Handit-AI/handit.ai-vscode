@@ -39,6 +39,11 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
         // Handle messages from the webview
         webviewView.webview.onDidReceiveMessage(
             message => {
+                try {
+                    console.log('[Handit] onDidReceiveMessage:', JSON.stringify({ command: message?.command, keys: Object.keys(message || {}) }));
+                } catch {
+                    console.log('[Handit] onDidReceiveMessage (non-serializable message)');
+                }
                 switch (message.command) {
                     case 'login':
                         this._handleLogin(message.email, message.password, webviewView.webview);
@@ -54,6 +59,23 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
                         return;
                     case 'showErrorMessage':
                         vscode.window.showErrorMessage(message.message);
+                        return;
+                    case 'diffPromptInProject':
+                        console.log('[Handit] Received diffPromptInProject message');
+                        console.log('[Handit] original length:', (message.originalPrompt?.length || 0), 'optimized length:', (message.optimizedPrompt?.length || 0));
+                        this._handleDiffPromptInProject(message.originalPrompt, message.optimizedPrompt);
+                        return;
+                    case 'bulkReplaceTextDiff':
+                        console.log('[Handit] Received bulkReplaceTextDiff message');
+                        this._handleBulkReplaceTextDiff(message.searchText, message.replacementText);
+                        return;
+                    case 'applyPromptChangeInProject':
+                        console.log('[Handit] Received applyPromptChangeInProject message');
+                        this._handleApplyPromptChangeInProject(message.originalPrompt, message.optimizedPrompt);
+                        return;
+                    case 'bulkApplyTextReplace':
+                        console.log('[Handit] Received bulkApplyTextReplace message');
+                        this._handleBulkApplyTextReplace(message.searchText, message.replacementText);
                         return;
                 }
             },
@@ -296,8 +318,16 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
 <body>
     <div id="root"></div>
     <script>
-        const vscode = acquireVsCodeApi();
-        window.vscode = vscode;
+        // Acquire VS Code API exactly once and assign to window.vscode
+        (function(){
+            try {
+                if (!window.vscode && typeof acquireVsCodeApi === 'function') {
+                    window.vscode = acquireVsCodeApi();
+                }
+            } catch (e) {
+                console.error('[Handit] Failed to acquire VS Code API in dev HTML:', e);
+            }
+        })();
     </script>
     <script type="module" src="http://localhost:5173/@vite/client"></script>
     <script type="module" src="http://localhost:5173/src/main.tsx"></script>
@@ -459,6 +489,210 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
     }
 
     /**
+     * Finds a file in the workspace containing the original prompt and opens a diff with an in-memory optimized version
+     */
+    private async _handleDiffPromptInProject(originalPrompt: string, optimizedPrompt: string) {
+        try {
+            console.log('[Handit] Starting _handleDiffPromptInProject');
+            if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+                vscode.window.showWarningMessage('No workspace open to search for prompts.');
+                console.warn('[Handit] No workspace folders found');
+                return;
+            }
+            const includePattern = new vscode.RelativePattern(vscode.workspace.workspaceFolders[0], '**/*.{ts,tsx,js,jsx,md,txt,json,py,java,go,rs,rb,php,yml,yaml}');
+            const fileUris = await vscode.workspace.findFiles(includePattern, '**/node_modules/**', 200);
+            console.log('[Handit] Scanning files for original prompt. Candidates:', fileUris.length);
+            let leftUri: vscode.Uri | undefined;
+            for (const uri of fileUris) {
+                try {
+                    const doc = await vscode.workspace.openTextDocument(uri);
+                    if (doc.getText().includes(originalPrompt)) {
+                        leftUri = uri;
+                        console.log('[Handit] Found original prompt in file:', uri.fsPath);
+                        break;
+                    }
+                } catch {}
+            }
+
+            if (leftUri) {
+                const leftDoc = await vscode.workspace.openTextDocument(leftUri);
+                const leftText = leftDoc.getText();
+                const replacedText = leftText.includes(originalPrompt)
+                    ? leftText.replace(originalPrompt, optimizedPrompt)
+                    : optimizedPrompt;
+
+                const scheme = 'handit-optimized';
+                const provider: vscode.TextDocumentContentProvider = {
+                    provideTextDocumentContent: () => replacedText
+                };
+                const registration = vscode.workspace.registerTextDocumentContentProvider(scheme, provider);
+
+                try {
+                    const rightWithScheme = vscode.Uri.parse(`${scheme}:/${path.basename(leftUri.fsPath)}`);
+                    const title = `Optimized vs Original — ${path.basename(leftUri.fsPath)}`;
+                    console.log('[Handit] Opening diff view');
+                    await vscode.commands.executeCommand('vscode.diff', leftUri, rightWithScheme, title, { preview: true });
+                } finally {
+                    // Keep provider longer to ensure diff loads content
+                    setTimeout(() => registration.dispose(), 30000);
+                }
+                return;
+            }
+
+            // Fallback: if we didn't find a file, show virtual original vs optimized
+            console.warn('[Handit] Original prompt not found in workspace, opening virtual diff');
+            const scheme = 'handit-virtual';
+            const provider: vscode.TextDocumentContentProvider = {
+                provideTextDocumentContent: (uri) => {
+                    if (uri.path.endsWith('/original.txt')) return originalPrompt;
+                    return optimizedPrompt;
+                }
+            };
+            const registration = vscode.workspace.registerTextDocumentContentProvider(scheme, provider);
+            try {
+                const leftVirtual = vscode.Uri.parse(`${scheme}:/original.txt`);
+                const rightVirtual = vscode.Uri.parse(`${scheme}:/optimized.txt`);
+                console.log('[Handit] Opening fallback virtual diff view');
+                await vscode.commands.executeCommand('vscode.diff', leftVirtual, rightVirtual, 'Optimized vs Original (virtual)', { preview: true });
+            } finally {
+                setTimeout(() => registration.dispose(), 30000);
+            }
+        } catch (err: any) {
+            console.error('❌ Failed to create prompt diff:', err);
+            vscode.window.showErrorMessage(`Failed to create prompt diff: ${err?.message || String(err)}`);
+        }
+    }
+
+    /**
+     * Finds all files containing a searchText and opens a diff view replacing it with replacementText.
+     * Shows the first diff and logs how many matches/files were found.
+     */
+    private async _handleBulkReplaceTextDiff(searchText: string, replacementText: string) {
+        try {
+            if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+                vscode.window.showWarningMessage('No workspace open for text search.');
+                return;
+            }
+            console.log('[Handit] bulkReplaceTextDiff: searching for text length:', (searchText?.length || 0));
+            const includePattern = new vscode.RelativePattern(vscode.workspace.workspaceFolders[0], '**/*');
+            const fileUris = await vscode.workspace.findFiles(includePattern, '**/{node_modules,.git,dist,out,build}/**', 5000);
+            console.log('[Handit] Candidate files:', fileUris.length);
+
+            const matches: vscode.Uri[] = [];
+            for (const uri of fileUris) {
+                try {
+                    const doc = await vscode.workspace.openTextDocument(uri);
+                    if (doc.getText().includes(searchText)) {
+                        matches.push(uri);
+                    }
+                } catch {}
+            }
+            console.log('[Handit] Files containing target text:', matches.length);
+            if (matches.length === 0) {
+                vscode.window.showInformationMessage('No files found containing the target text.');
+                return;
+            }
+
+            const leftUri = matches[0];
+            const leftDoc = await vscode.workspace.openTextDocument(leftUri);
+            const leftText = leftDoc.getText();
+            const replacedText = leftText.replace(searchText, replacementText);
+
+            const scheme = 'handit-bulk-replace';
+            const provider: vscode.TextDocumentContentProvider = {
+                provideTextDocumentContent: () => replacedText
+            };
+            const registration = vscode.workspace.registerTextDocumentContentProvider(scheme, provider);
+            try {
+                const rightWithScheme = vscode.Uri.parse(`${scheme}:/${path.basename(leftUri.fsPath)}`);
+                const title = `Preview replace in ${path.basename(leftUri.fsPath)}`;
+                console.log('[Handit] Opening bulk replace diff view');
+                await vscode.commands.executeCommand('vscode.diff', leftUri, rightWithScheme, title, { preview: true });
+                vscode.window.showInformationMessage(`Found ${matches.length} file(s) containing the text. Showing first diff.`);
+            } finally {
+                setTimeout(() => registration.dispose(), 30000);
+            }
+        } catch (err: any) {
+            console.error('❌ bulkReplaceTextDiff failed:', err);
+            vscode.window.showErrorMessage(`bulkReplaceTextDiff failed: ${err?.message || String(err)}`);
+        }
+    }
+
+    /** Apply optimized prompt into the first file containing the original prompt */
+    private async _handleApplyPromptChangeInProject(originalPrompt: string, optimizedPrompt: string) {
+        try {
+            if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+                vscode.window.showWarningMessage('No workspace open to apply changes.');
+                return;
+            }
+            const includePattern = new vscode.RelativePattern(vscode.workspace.workspaceFolders[0], '**/*');
+            const fileUris = await vscode.workspace.findFiles(includePattern, '**/{node_modules,.git,dist,out,build}/**', 5000);
+            let target: vscode.Uri | undefined;
+            for (const uri of fileUris) {
+                try {
+                    const doc = await vscode.workspace.openTextDocument(uri);
+                    if (doc.getText().includes(originalPrompt)) {
+                        target = uri;
+                        break;
+                    }
+                } catch {}
+            }
+            if (!target) {
+                vscode.window.showWarningMessage('No file found containing the original prompt to apply change.');
+                return;
+            }
+            const doc = await vscode.workspace.openTextDocument(target);
+            const edit = new vscode.WorkspaceEdit();
+            const fullRange = new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length));
+            const newText = doc.getText().replace(originalPrompt, optimizedPrompt);
+            edit.replace(target, fullRange, newText);
+            const applied = await vscode.workspace.applyEdit(edit);
+            if (applied) {
+                await doc.save();
+                vscode.window.showInformationMessage(`Applied optimized prompt in ${path.basename(target.fsPath)}`);
+            } else {
+                vscode.window.showErrorMessage('Failed to apply optimized prompt change.');
+            }
+        } catch (err: any) {
+            console.error('❌ applyPromptChangeInProject failed:', err);
+            vscode.window.showErrorMessage(`applyPromptChangeInProject failed: ${err?.message || String(err)}`);
+        }
+    }
+
+    /** Bulk apply replacement across all files containing searchText */
+    private async _handleBulkApplyTextReplace(searchText: string, replacementText: string) {
+        try {
+            if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+                vscode.window.showWarningMessage('No workspace open to apply bulk replace.');
+                return;
+            }
+            const includePattern = new vscode.RelativePattern(vscode.workspace.workspaceFolders[0], '**/*');
+            const fileUris = await vscode.workspace.findFiles(includePattern, '**/{node_modules,.git,dist,out,build}/**', 10000);
+            let updated = 0;
+            for (const uri of fileUris) {
+                try {
+                    const doc = await vscode.workspace.openTextDocument(uri);
+                    const original = doc.getText();
+                    if (!original.includes(searchText)) continue;
+                    const newText = original.split(searchText).join(replacementText);
+                    const edit = new vscode.WorkspaceEdit();
+                    const fullRange = new vscode.Range(doc.positionAt(0), doc.positionAt(original.length));
+                    edit.replace(uri, fullRange, newText);
+                    const applied = await vscode.workspace.applyEdit(edit);
+                    if (applied) {
+                        await doc.save();
+                        updated += 1;
+                    }
+                } catch {}
+            }
+            vscode.window.showInformationMessage(`Bulk replace applied in ${updated} file(s).`);
+        } catch (err: any) {
+            console.error('❌ bulkApplyTextReplace failed:', err);
+            vscode.window.showErrorMessage(`bulkApplyTextReplace failed: ${err?.message || String(err)}`);
+        }
+    }
+
+    /**
      * Generates HTML for production mode (bundled files)
      * @param webview The webview instance for CSP
      * @param webviewUri Base URI for webview resources
@@ -489,8 +723,15 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
 <body>
     <div id="root"></div>
     <script>
-        const vscode = acquireVsCodeApi();
-        window.vscode = vscode;
+        (function(){
+            try {
+                if (!window.vscode && typeof acquireVsCodeApi === 'function') {
+                    window.vscode = acquireVsCodeApi();
+                }
+            } catch (e) {
+                console.error('[Handit] Failed to acquire VS Code API in prod HTML:', e);
+            }
+        })();
     </script>
     <script type="module" src="${webviewUri}/assets/index.js"></script>
 </body>
