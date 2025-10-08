@@ -9,7 +9,230 @@ import { apiService } from './services/ApiService';
 export class LoginPanelProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'handitLogin.webview';
 
-    constructor(private readonly _extensionUri: vscode.Uri) {}
+    // Store current diff prompts for Accept/Deny functionality
+    private currentOriginalPrompt: string | null = null;
+    private currentOptimizedPrompt: string | null = null;
+    private currentDiffUri: vscode.Uri | null = null;
+    private statusBarAccept: vscode.StatusBarItem | null = null;
+    private statusBarDeny: vscode.StatusBarItem | null = null;
+    private decorationType: vscode.TextEditorDecorationType | null = null;
+    private _editorChangeDisposable: vscode.Disposable | null = null;
+
+    constructor(private readonly _extensionUri: vscode.Uri) {
+        this._registerCommands();
+    }
+
+    /**
+     * Register Accept/Deny commands for diff functionality
+     */
+    private _registerCommands() {
+        // Accept changes command
+        vscode.commands.registerCommand('handit.acceptPromptChanges', async () => {
+            await this._acceptPromptChanges();
+        });
+
+        // Deny changes command
+        vscode.commands.registerCommand('handit.denyPromptChanges', async () => {
+            // Show feedback input dialog
+            const feedback = await vscode.window.showInputBox({
+                prompt: 'Could you share what made you decide not to accept the changes? Your feedback would be very helpful.',
+                placeHolder: 'Please share your thoughts about why you didn\'t accept the changes...',
+                ignoreFocusOut: true
+            });
+
+            if (feedback !== undefined) {
+                // Handle the feedback
+                await this._handleFeedbackSubmission(feedback);
+            }
+        });
+
+        // Create status bar items for Accept and Deny
+        this.statusBarAccept = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+        this.statusBarAccept.command = 'handit.acceptPromptChanges';
+        this.statusBarAccept.text = '$(check) Accept';
+        this.statusBarAccept.tooltip = 'Accept the optimized prompt changes';
+
+        this.statusBarDeny = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
+        this.statusBarDeny.command = 'handit.denyPromptChanges';
+        this.statusBarDeny.text = '$(x) Deny';
+        this.statusBarDeny.tooltip = 'Deny the optimized prompt changes';
+    }
+
+    /**
+     * Accept the optimized prompt changes
+     */
+    private async _acceptPromptChanges() {
+        if (!this.currentOriginalPrompt || !this.currentOptimizedPrompt || !this.currentDiffUri) {
+            vscode.window.showErrorMessage('No prompt changes to accept');
+            return;
+        }
+
+        try {
+            // Find the file that contains the original prompt
+            const workspaceFiles = await vscode.workspace.findFiles('**/*', null, 1000);
+            let targetFile: vscode.Uri | null = null;
+
+            for (const file of workspaceFiles) {
+                try {
+                    const doc = await vscode.workspace.openTextDocument(file);
+                    const content = doc.getText();
+                    if (content.includes(this.currentOriginalPrompt)) {
+                        targetFile = file;
+                        break;
+                    }
+                } catch (e) {
+                    // Skip files that can't be read
+                    continue;
+                }
+            }
+
+            if (targetFile) {
+                // Replace the original prompt with the optimized one
+                const doc = await vscode.workspace.openTextDocument(targetFile);
+                const content = doc.getText();
+                const newContent = content.replace(this.currentOriginalPrompt, this.currentOptimizedPrompt);
+                
+                const edit = new vscode.WorkspaceEdit();
+                edit.replace(targetFile, new vscode.Range(0, 0, doc.lineCount, 0), newContent);
+                await vscode.workspace.applyEdit(edit);
+                
+                vscode.window.showInformationMessage('✅ Prompt changes accepted and applied!');
+                this._removeInlineButtons();
+                this._hideStatusBar();
+            } else {
+                vscode.window.showErrorMessage('Could not find the file containing the original prompt');
+            }
+        } catch (error) {
+            console.error('Error accepting prompt changes:', error);
+            vscode.window.showErrorMessage('Failed to accept prompt changes');
+        }
+    }
+
+    /**
+     * Deny the optimized prompt changes
+     */
+    private async _denyPromptChanges() {
+        // The feedback modal will be triggered by the webview itself
+        // when the user clicks the Deny button in the status bar
+        // This function is kept for compatibility but the actual
+        // feedback flow is handled in the webview
+    }
+
+    /**
+     * Handle feedback submission
+     */
+    private async _handleFeedbackSubmission(feedback: string) {
+        try {
+            // Here you could send feedback to your backend
+            console.log('Feedback received:', feedback);
+            
+            // Close the diff after feedback is submitted
+            await this._closeDiffTab();
+            
+            vscode.window.showInformationMessage('Thank you for your feedback! It helps us improve.');
+        } catch (error) {
+            console.error('Error handling feedback:', error);
+            vscode.window.showErrorMessage('Failed to submit feedback');
+        }
+    }
+
+
+    /**
+     * Close the diff tab
+     */
+    private async _closeDiffTab() {
+        this._removeInlineButtons();
+        this._hideStatusBar();
+        
+        // Close ONLY the diff tab we opened (leave original files intact)
+        try {
+            const groups = vscode.window.tabGroups.all;
+            for (const group of groups) {
+                for (const tab of group.tabs) {
+                    const input: any = tab.input;
+                    // Detect diff tabs by input type and our schemes
+                    const isDiffTab = input && (input instanceof (vscode as any).TabInputTextDiff || (input?.modified && input?.original));
+                    if (isDiffTab) {
+                        const leftUri: vscode.Uri | undefined = input.original as vscode.Uri;
+                        const rightUri: vscode.Uri | undefined = input.modified as vscode.Uri;
+                        const leftMatch = leftUri && (leftUri.scheme === 'handit-virtual' || leftUri.scheme === 'file');
+                        const rightMatch = rightUri && (rightUri.scheme === 'handit-optimized' || rightUri.scheme === 'handit-virtual');
+                        // Close only if it's our Handit diff (optimized/virtual scheme on either side)
+                        if (leftMatch && rightMatch) {
+                            await vscode.window.tabGroups.close(tab, true);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error closing diff editors:', error);
+        }
+    }
+
+    /**
+     * Show status bar with Accept/Deny buttons
+     */
+    private _showStatusBar() {
+        if (this.statusBarAccept && this.statusBarDeny) {
+            this.statusBarAccept.show();
+            this.statusBarDeny.show();
+        }
+    }
+
+    /**
+     * Hide status bar
+     */
+    private _hideStatusBar() {
+        if (this.statusBarAccept) this.statusBarAccept.hide();
+        if (this.statusBarDeny) this.statusBarDeny.hide();
+        // Clear stored prompts
+        this.currentOriginalPrompt = null;
+        this.currentOptimizedPrompt = null;
+        this.currentDiffUri = null;
+    }
+
+    /**
+     * Show action menu for Accept/Deny
+     */
+    private async _showPromptActions() {
+        const actions = [
+            {
+                label: '$(check) Accept Changes',
+                description: 'Apply the optimized prompt to your workspace',
+                action: () => this._acceptPromptChanges()
+            },
+            {
+                label: '$(x) Deny Changes',
+                description: 'Reject the optimized prompt changes',
+                action: () => this._denyPromptChanges()
+            }
+        ];
+
+        const selectedAction = await vscode.window.showQuickPick(actions, {
+            placeHolder: 'Choose an action for the prompt changes',
+            matchOnDescription: true
+        });
+
+        if (selectedAction) {
+            await selectedAction.action();
+        }
+    }
+
+    // Inline buttons removed per request; using status bar actions instead
+
+    /**
+     * Remove inline buttons
+     */
+    private _removeInlineButtons() {
+        if (this.decorationType) {
+            this.decorationType.dispose();
+            this.decorationType = null;
+        }
+        if (this._editorChangeDisposable) {
+            this._editorChangeDisposable.dispose();
+            this._editorChangeDisposable = null;
+        }
+    }
 
     /**
      * Resolves the webview view
@@ -72,6 +295,10 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
                     case 'applyPromptChangeInProject':
                         console.log('[Handit] Received applyPromptChangeInProject message');
                         this._handleApplyPromptChangeInProject(message.originalPrompt, message.optimizedPrompt);
+                        return;
+                    case 'submitFeedback':
+                        console.log('[Handit] Received submitFeedback message');
+                        this._handleFeedbackSubmission(message.feedback);
                         return;
                     case 'bulkApplyTextReplace':
                         console.log('[Handit] Received bulkApplyTextReplace message');
@@ -494,6 +721,11 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
     private async _handleDiffPromptInProject(originalPrompt: string, optimizedPrompt: string) {
         try {
             console.log('[Handit] Starting _handleDiffPromptInProject');
+            
+            // Store prompts for Accept/Deny functionality
+            this.currentOriginalPrompt = originalPrompt;
+            this.currentOptimizedPrompt = optimizedPrompt;
+            
             if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
                 vscode.window.showWarningMessage('No workspace open to search for prompts.');
                 console.warn('[Handit] No workspace folders found');
@@ -532,6 +764,10 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
                     const title = `Optimized vs Original — ${path.basename(leftUri.fsPath)}`;
                     console.log('[Handit] Opening diff view');
                     await vscode.commands.executeCommand('vscode.diff', leftUri, rightWithScheme, title, { preview: true });
+                    
+                    // Store the diff URI and show status bar buttons
+                    this.currentDiffUri = leftUri;
+                    this._showStatusBar();
                 } finally {
                     // Keep provider longer to ensure diff loads content
                     setTimeout(() => registration.dispose(), 30000);
@@ -554,6 +790,9 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
                 const rightVirtual = vscode.Uri.parse(`${scheme}:/optimized.txt`);
                 console.log('[Handit] Opening fallback virtual diff view');
                 await vscode.commands.executeCommand('vscode.diff', leftVirtual, rightVirtual, 'Optimized vs Original (virtual)', { preview: true });
+                
+                // Show status bar buttons for virtual diff too
+                this._showStatusBar();
             } finally {
                 setTimeout(() => registration.dispose(), 30000);
             }

@@ -54,7 +54,10 @@ export const useChat = () => {
       console.log('📨 Received message from VS Code:', event.data);
       const message = event.data;
       
-      if (message.command === 'traceReceived') {
+      if (message.command === 'showFeedbackModal') {
+        // This will be handled by the ControlPanel component
+        window.dispatchEvent(new CustomEvent('showFeedbackModal'));
+      } else if (message.command === 'traceReceived') {
         console.log('🎯 Trace received from VS Code:', message);
         
         // Update trace count and add the trace to runs

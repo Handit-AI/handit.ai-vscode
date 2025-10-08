@@ -44,6 +44,24 @@
         "command": "handitLogin.login",
         "title": "Login",
         "icon": "$(sign-in)"
+      },
+      {
+        "command": "handit.acceptPromptChanges",
+        "title": "Accept Prompt Changes",
+        "icon": "$(check)",
+        "category": "Handit"
+      },
+      {
+        "command": "handit.denyPromptChanges",
+        "title": "Deny Prompt Changes",
+        "icon": "$(x)",
+        "category": "Handit"
+      },
+      {
+        "command": "handit.showPromptActions",
+        "title": "Show Prompt Actions",
+        "icon": "$(gear)",
+        "category": "Handit"
       }
     ],
     "configuration": {
