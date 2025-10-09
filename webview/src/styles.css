@@ -1135,3 +1135,269 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* AI Models Manager Styles */
+.ai-models-manager {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.ai-models-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.ai-models-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--vscode-editor-foreground);
+  margin: 0 0 8px 0;
+}
+
+.ai-models-subtitle {
+  font-size: 14px;
+  color: var(--vscode-editor-foreground);
+  opacity: 0.8;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.ai-models-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.ai-models-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-models-section-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--vscode-editor-foreground);
+  margin: 0;
+}
+
+/* Provider Select Styles */
+.ai-models-section {
+  position: relative;
+}
+
+.provider-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 8px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.provider-select:hover {
+  border-color: var(--vscode-focusBorder);
+}
+
+.provider-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.provider-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background-color: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 8px;
+  z-index: 1000;
+  box-shadow: var(--vscode-widget-shadow);
+  overflow: hidden;
+}
+
+.provider-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  color: var(--vscode-editor-foreground);
+}
+
+.provider-dropdown-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.provider-dropdown-item.selected {
+  background-color: rgba(0, 122, 204, 0.1);
+  color: var(--vscode-focusBorder);
+}
+
+.provider-dropdown-item:first-child {
+  border-radius: 8px 8px 0 0;
+}
+
+.provider-dropdown-item:last-child {
+  border-radius: 0 0 8px 8px;
+}
+
+/* Models List Styles */
+.models-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 8px;
+  background-color: var(--vscode-input-background);
+}
+
+.model-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.model-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--vscode-editor-foreground);
+}
+
+.model-radio {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--vscode-focusBorder);
+  cursor: pointer;
+}
+
+/* API Key Input Styles */
+.api-key-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 8px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  transition: all 0.2s ease;
+  margin-bottom: 16px;
+}
+
+.api-key-input:focus-within {
+  border-color: var(--vscode-focusBorder);
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.api-key-field {
+  flex: 1;
+  border: none;
+  background: none;
+  color: var(--vscode-input-foreground);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+
+.api-key-field::placeholder {
+  color: var(--vscode-input-foreground);
+  opacity: 0.6;
+}
+
+.api-key-toggle {
+  background: none;
+  border: none;
+  color: var(--vscode-editor-foreground);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.api-key-toggle:hover {
+  opacity: 1;
+}
+
+.api-key-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.connect-button {
+  width: 100%;
+  padding: 14px 24px;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 48px;
+}
+
+.connect-button:hover:not(:disabled) {
+  background-color: var(--vscode-button-hoverBackground);
+  transform: translateY(-1px);
+  box-shadow: var(--vscode-widget-shadow);
+}
+
+.connect-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.connect-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Light theme overrides for AI Models Manager */
+.vscode-light .ai-models-title {
+  color: #333333;
+}
+
+.vscode-light .ai-models-subtitle {
+  color: #666666;
+}
+
+.vscode-light .ai-models-section-title {
+  color: #333333;
+}
+
+.vscode-light .model-info {
+  color: #333333;
+}
+
+/* Responsive design for AI Models Manager */
+@media (max-width: 480px) {
+  .ai-models-manager {
+    padding: 16px;
+  }
+  
+  .ai-models-title {
+    font-size: 20px;
+  }
+}

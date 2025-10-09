@@ -1,7 +1,9 @@
 import React from 'react';
 import LoginForm from './components/LoginForm';
+import AIModelsManager from './components/AIModelsManager';
 import ControlPanel from './components/ControlPanel';
 import { useChat } from './hooks/useChat';
+import { useVSCode } from './hooks/useVSCode';
 import './styles.css';
 
 /**
@@ -18,11 +20,46 @@ function getLogoFromDom(): string | undefined {
  */
 const App: React.FC = () => {
   const logo = getLogoFromDom();
-  const [view, setView] = React.useState<'auth' | 'panel'>('auth');
+  const [view, setView] = React.useState<'auth' | 'ai-models' | 'control-panel'>('auth');
   const { fixSession } = useChat();
+  const { postMessage } = useVSCode();
+  
+  // Get icon URLs from VS Code extension
+  const [openAIIconUrl, setOpenAIIconUrl] = React.useState<string | undefined>();
+  const [togetherAIIconUrl, setTogetherAIIconUrl] = React.useState<string | undefined>();
+  const [awsBedrockIconUrl, setAwsBedrockIconUrl] = React.useState<string | undefined>();
+  
+  React.useEffect(() => {
+    // Request the icon URLs from the extension
+    postMessage({
+      command: 'getOpenAIIconUrl'
+    });
+    postMessage({
+      command: 'getTogetherAIIconUrl'
+    });
+    postMessage({
+      command: 'getAwsBedrockIconUrl'
+    });
+  }, [postMessage]);
+  
+  // Listen for the responses
+  React.useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.command === 'openAIIconUrl') {
+        setOpenAIIconUrl(event.data.url);
+      } else if (event.data.command === 'togetherAIIconUrl') {
+        setTogetherAIIconUrl(event.data.url);
+      } else if (event.data.command === 'awsBedrockIconUrl') {
+        setAwsBedrockIconUrl(event.data.url);
+      }
+    };
+    
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   return (
-    <div className={`app ${view === 'panel' ? 'app--panel' : ''}`}>
+    <div className={`app ${view === 'control-panel' ? 'app--panel' : ''}`}>
       {view === 'auth' ? (
         <div className="app-main">
           <div className="app-header">
@@ -33,8 +70,17 @@ const App: React.FC = () => {
           </div>
           
           <div className="app-content">
-            <LoginForm onSuccess={() => setView('panel')} />
+            <LoginForm onSuccess={() => setView('ai-models')} />
           </div>
+        </div>
+      ) : view === 'ai-models' ? (
+        <div className="app-main">
+          <AIModelsManager 
+            onConnect={() => setView('control-panel')} 
+            openAIIconUrl={openAIIconUrl}
+            togetherAIIconUrl={togetherAIIconUrl}
+            awsBedrockIconUrl={awsBedrockIconUrl}
+          />
         </div>
       ) : (
         <div className="app-main">

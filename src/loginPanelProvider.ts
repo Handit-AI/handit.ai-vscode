@@ -249,7 +249,8 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
             localResourceRoots: [
                 this._extensionUri,
                 vscode.Uri.joinPath(this._extensionUri, 'media'),
-                vscode.Uri.joinPath(this._extensionUri, 'webview', 'dist')
+                vscode.Uri.joinPath(this._extensionUri, 'webview', 'dist'),
+                vscode.Uri.joinPath(this._extensionUri, 'webview', 'src', 'assets')
             ]
         };
 
@@ -303,6 +304,18 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
                     case 'bulkApplyTextReplace':
                         console.log('[Handit] Received bulkApplyTextReplace message');
                         this._handleBulkApplyTextReplace(message.searchText, message.replacementText);
+                        return;
+                    case 'getOpenAIIconUrl':
+                        console.log('[Handit] Received getOpenAIIconUrl message');
+                        this._handleGetOpenAIIconUrl(webviewView.webview);
+                        return;
+                    case 'getTogetherAIIconUrl':
+                        console.log('[Handit] Received getTogetherAIIconUrl message');
+                        this._handleGetTogetherAIIconUrl(webviewView.webview);
+                        return;
+                    case 'getAwsBedrockIconUrl':
+                        console.log('[Handit] Received getAwsBedrockIconUrl message');
+                        this._handleGetAwsBedrockIconUrl(webviewView.webview);
                         return;
                 }
             },
@@ -928,6 +941,87 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
         } catch (err: any) {
             console.error('❌ bulkApplyTextReplace failed:', err);
             vscode.window.showErrorMessage(`bulkApplyTextReplace failed: ${err?.message || String(err)}`);
+        }
+    }
+
+    /**
+     * Handles request for OpenAI icon URL
+     * @param webview The webview instance for sending response
+     */
+    private _handleGetOpenAIIconUrl(webview: vscode.Webview) {
+        try {
+            // Get the OpenAI icon path from webview assets
+            const openAIIconUri = vscode.Uri.joinPath(this._extensionUri, 'webview', 'src', 'assets', 'OpenAI.png');
+            const openAIIconWebviewUri = webview.asWebviewUri(openAIIconUri);
+            
+            console.log('[Handit] Generated OpenAI icon URL:', openAIIconWebviewUri.toString());
+            
+            // Send the URL back to the webview
+            webview.postMessage({
+                command: 'openAIIconUrl',
+                url: openAIIconWebviewUri.toString()
+            });
+        } catch (error) {
+            console.error('[Handit] Failed to generate OpenAI icon URL:', error);
+            // Send empty URL on error
+            webview.postMessage({
+                command: 'openAIIconUrl',
+                url: undefined
+            });
+        }
+    }
+
+    /**
+     * Handles request for TogetherAI icon URL
+     * @param webview The webview instance for sending response
+     */
+    private _handleGetTogetherAIIconUrl(webview: vscode.Webview) {
+        try {
+            // Get the TogetherAI icon path from webview assets
+            const togetherAIIconUri = vscode.Uri.joinPath(this._extensionUri, 'webview', 'src', 'assets', 'togetherAI.png');
+            const togetherAIIconWebviewUri = webview.asWebviewUri(togetherAIIconUri);
+            
+            console.log('[Handit] Generated TogetherAI icon URL:', togetherAIIconWebviewUri.toString());
+            
+            // Send the URL back to the webview
+            webview.postMessage({
+                command: 'togetherAIIconUrl',
+                url: togetherAIIconWebviewUri.toString()
+            });
+        } catch (error) {
+            console.error('[Handit] Failed to generate TogetherAI icon URL:', error);
+            // Send empty URL on error
+            webview.postMessage({
+                command: 'togetherAIIconUrl',
+                url: undefined
+            });
+        }
+    }
+
+    /**
+     * Handles request for AWS Bedrock icon URL
+     * @param webview The webview instance for sending response
+     */
+    private _handleGetAwsBedrockIconUrl(webview: vscode.Webview) {
+        try {
+            // Get the AWS Bedrock icon path from webview assets
+            const awsBedrockIconUri = vscode.Uri.joinPath(this._extensionUri, 'webview', 'src', 'assets', 'Amazon.png');
+            const awsBedrockIconWebviewUri = webview.asWebviewUri(awsBedrockIconUri);
+            
+            console.log('[Handit] Generated AWS Bedrock icon URL:', awsBedrockIconWebviewUri.toString());
+            
+            // Send the URL back to the webview
+            webview.postMessage({
+                command: 'awsBedrockIconUrl',
+                url: awsBedrockIconWebviewUri.toString()
+            });
+        } catch (error) {
+            console.error('[Handit] Failed to generate AWS Bedrock icon URL:', error);
+            // Send empty URL on error
+            webview.postMessage({
+                command: 'awsBedrockIconUrl',
+                url: undefined
+            });
         }
     }
 
