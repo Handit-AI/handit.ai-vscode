@@ -91,6 +91,12 @@ body {
   padding-top: 20px;
 }
 
+/* AI Models layout - position content at top */
+.app--ai-models .app-main {
+  margin: 0;
+  padding-top: 10px;
+}
+
 .app-header {
   text-align: center;
   margin-bottom: 4px;

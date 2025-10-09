@@ -543,6 +543,56 @@ export class ApiService {
         }
     }
 
+
+    // ==================== PROVIDERS ENDPOINTS ====================
+
+    /**
+     * Get all providers
+     * @returns Promise with providers response
+     */
+    public async getProviders(): Promise<AxiosResponse> {
+        console.log('🔍 Getting providers...');
+        console.log('🌐 API Base URL:', this.baseURL);
+        console.log('🔗 Full endpoint URL:', `${this.baseURL}/providers`);
+        console.log('🔑 Auth token present:', !!this.axiosInstance.defaults.headers.common['Authorization']);
+        
+        const response = await this.axiosInstance.get('/providers');
+        
+        console.log('✅ Providers retrieved successfully');
+        console.log('📥 Providers response:', response.data);
+        
+        return response;
+    }
+
+    // ==================== INTEGRATION TOKENS ENDPOINTS ====================
+
+    /**
+     * Create integration token
+     * @param tokenData Integration token data
+     * @returns Promise with integration token response
+     */
+    public async createIntegrationToken(tokenData: {
+        providerId: number;
+        name: string;
+        token: string;
+        data: {
+            defaultModel: string;
+        };
+    }): Promise<AxiosResponse> {
+        console.log('🔑 Creating integration token...');
+        console.log('📤 Token data:', tokenData);
+        console.log('🌐 API Base URL:', this.baseURL);
+        console.log('🔗 Full endpoint URL:', `${this.baseURL}/integration-tokens`);
+        console.log('🔑 Auth token present:', !!this.axiosInstance.defaults.headers.common['Authorization']);
+        
+        const response = await this.axiosInstance.post('/integration-tokens', tokenData);
+        
+        console.log('✅ Integration token created successfully');
+        console.log('📥 Integration token response:', response.data);
+        
+        return response;
+    }
+
     // ==================== UTILITY METHODS ====================
 
     /**

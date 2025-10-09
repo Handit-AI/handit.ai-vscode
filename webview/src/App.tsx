@@ -59,7 +59,7 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div className={`app ${view === 'control-panel' ? 'app--panel' : ''}`}>
+    <div className={`app ${view === 'control-panel' ? 'app--panel' : ''} ${view === 'ai-models' ? 'app--ai-models' : ''}`}>
       {view === 'auth' ? (
         <div className="app-main">
           <div className="app-header">

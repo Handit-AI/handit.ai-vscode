@@ -17,6 +17,7 @@ const AIModelsManager: React.FC<AIModelsManagerProps> = ({ onConnect, openAIIcon
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [showProviderDropdown, setShowProviderDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { postMessage } = useVSCode();
@@ -63,17 +64,120 @@ const AIModelsManager: React.FC<AIModelsManagerProps> = ({ onConnect, openAIIcon
   };
 
   const handleConnect = () => {
-    // Send configuration to VS Code extension
+    if (!selectedModel || !apiKey) {
+      return;
+    }
+
+    setIsConnecting(true);
+
+    console.log('🚀 Starting connection process...');
+    console.log('📊 Selected provider:', selectedProvider);
+    console.log('📊 Selected model:', selectedModel);
+    console.log('🔑 API key length:', apiKey.length);
+
+    // Step 1: Get providers to find the provider ID
+    console.log('🔍 Step 1: Getting providers...');
     postMessage({
-      command: 'configureAI',
-      provider: selectedProvider,
-      model: selectedModel,
-      apiKey: apiKey
+      command: 'getProviders'
     });
-    
-    // Navigate to control panel
-    onConnect?.();
   };
+
+  // Handle responses from the extension
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const { command, success, data, error } = event.data;
+
+      if (command === 'getProviders') {
+        if (success) {
+          console.log('✅ Providers retrieved:', data);
+          
+          // Ensure data is an array
+          if (!Array.isArray(data)) {
+            console.error('❌ Providers data is not an array:', data);
+            postMessage({
+              command: 'showErrorMessage',
+              message: '❌ Something went wrong while connecting. Please check your token and try again'
+            });
+            setIsConnecting(false);
+            return;
+          }
+          
+          // Find the provider ID based on selected provider
+          const providerData = data.find((p: any) => {
+            if (selectedProvider === 'OpenAI') return p.name === 'OpenAI';
+            if (selectedProvider === 'TogetherAI') return p.name === 'TogetherAI';
+            if (selectedProvider === 'AWSBedrock') return p.name === 'AWS Bedrock';
+            return false;
+          });
+
+          if (!providerData) {
+            console.error('❌ Provider not found:', selectedProvider);
+            postMessage({
+              command: 'showErrorMessage',
+              message: '❌ Something went wrong while connecting. Please check your token and try again'
+            });
+            setIsConnecting(false);
+            return;
+          }
+
+          const providerId = providerData.id;
+          console.log('🎯 Found provider ID:', providerId);
+
+          // Step 2: Create integration token
+          console.log('🔑 Step 2: Creating integration token...');
+          const tokenData = {
+            providerId: providerId,
+            name: `Mi Token ${selectedProvider}`,
+            token: apiKey,
+            data: {
+              defaultModel: selectedModel
+            }
+          };
+
+          console.log('📤 Token data:', tokenData);
+
+          postMessage({
+            command: 'createIntegrationToken',
+            tokenData: tokenData
+          });
+        } else {
+          console.error('❌ Failed to get providers:', error);
+          postMessage({
+            command: 'showErrorMessage',
+            message: '❌ Something went wrong while connecting. Please check your token and try again'
+          });
+          setIsConnecting(false);
+        }
+      } else if (command === 'createIntegrationToken') {
+        if (success) {
+          console.log('✅ Integration token created:', data);
+
+          // Step 3: Send configuration to VS Code extension
+          console.log('⚙️ Step 3: Sending configuration to extension...');
+          postMessage({
+            command: 'configureAI',
+            provider: selectedProvider,
+            model: selectedModel,
+            apiKey: apiKey
+          });
+          
+          // Step 4: Navigate to control panel
+          console.log('🎉 Connection successful! Navigating to control panel...');
+          onConnect?.();
+        } else {
+          console.error('❌ Failed to create integration token:', error);
+          postMessage({
+            command: 'showErrorMessage',
+            message: '❌ Something went wrong while connecting. Please check your token and try again'
+          });
+        }
+        setIsConnecting(false);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [selectedProvider, selectedModel, apiKey, onConnect, postMessage]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -151,9 +255,9 @@ const AIModelsManager: React.FC<AIModelsManagerProps> = ({ onConnect, openAIIcon
   return (
     <div className="ai-models-manager">
       <div className="ai-models-header">
-        <h1 className="ai-models-title">Manage my AI Models</h1>
+        <h1 className="ai-models-title">Connect your AI provider</h1>
         <p className="ai-models-subtitle">
-          Choose your AI provider(s), enter your API key(s), select your models and start coding.
+          I’ll use your API token to evaluate your agents directly from your provider.
         </p>
       </div>
 
@@ -231,9 +335,9 @@ const AIModelsManager: React.FC<AIModelsManagerProps> = ({ onConnect, openAIIcon
             type="button"
             className="connect-button"
             onClick={handleConnect}
-            disabled={!selectedModel || !apiKey}
+            disabled={!selectedModel || !apiKey || isConnecting}
           >
-            Connect
+            {isConnecting ? 'Connecting...' : 'Connect'}
           </button>
         </div>
       </div>

@@ -317,6 +317,18 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
                         console.log('[Handit] Received getAwsBedrockIconUrl message');
                         this._handleGetAwsBedrockIconUrl(webviewView.webview);
                         return;
+                    case 'getProviders':
+                        console.log('[Handit] Received getProviders message');
+                        this._handleGetProviders(webviewView.webview);
+                        return;
+                    case 'createIntegrationToken':
+                        console.log('[Handit] Received createIntegrationToken message');
+                        this._handleCreateIntegrationToken(webviewView.webview, message.tokenData);
+                        return;
+                    case 'showErrorMessage':
+                        console.log('[Handit] Received showErrorMessage message');
+                        this._handleShowErrorMessage(message.message);
+                        return;
                 }
             },
             undefined,
@@ -1023,6 +1035,83 @@ export class LoginPanelProvider implements vscode.WebviewViewProvider {
                 url: undefined
             });
         }
+    }
+
+    /**
+     * Handles getting providers from the API
+     * @param webview The webview instance for sending response
+     */
+    private async _handleGetProviders(webview: vscode.Webview) {
+        try {
+            console.log('[Handit] Getting providers from API...');
+            
+            // Set the auth token
+            apiService.setAuthToken('2f3bcfaf11d2d909ed90d2ec706114e15b15a7f5642af4f9a385266c4d210f56');
+            
+            const response = await apiService.getProviders();
+            console.log('[Handit] Providers response:', response.data);
+            
+            // Check if response has the expected structure
+            const providersData = response.data?.data || response.data;
+            console.log('[Handit] Providers data to send:', providersData);
+            
+            webview.postMessage({ 
+                command: 'getProviders', 
+                success: true, 
+                data: providersData 
+            });
+        } catch (error) {
+            console.error('[Handit] Error getting providers:', error);
+            webview.postMessage({ 
+                command: 'getProviders', 
+                success: false, 
+                error: error instanceof Error ? error.message : 'Unknown error' 
+            });
+        }
+    }
+
+    /**
+     * Handles creating integration token
+     * @param webview The webview instance for sending response
+     * @param tokenData The token data to create
+     */
+    private async _handleCreateIntegrationToken(webview: vscode.Webview, tokenData: any) {
+        try {
+            console.log('[Handit] Creating integration token...');
+            console.log('[Handit] Token data:', tokenData);
+            
+            // Set the auth token
+            apiService.setAuthToken('2f3bcfaf11d2d909ed90d2ec706114e15b15a7f5642af4f9a385266c4d210f56');
+            
+            const response = await apiService.createIntegrationToken(tokenData);
+            console.log('[Handit] Integration token response:', response.data);
+            
+            // Check if response has the expected structure
+            const tokenResponseData = response.data?.data || response.data;
+            console.log('[Handit] Token response data to send:', tokenResponseData);
+            
+            webview.postMessage({ 
+                command: 'createIntegrationToken', 
+                success: true, 
+                data: tokenResponseData 
+            });
+        } catch (error) {
+            console.error('[Handit] Error creating integration token:', error);
+            webview.postMessage({ 
+                command: 'createIntegrationToken', 
+                success: false, 
+                error: error instanceof Error ? error.message : 'Unknown error' 
+            });
+        }
+    }
+
+    /**
+     * Handles showing error message to user
+     * @param message The error message to show
+     */
+    private _handleShowErrorMessage(message: string) {
+        console.log('[Handit] Showing error message:', message);
+        vscode.window.showInformationMessage(message);
     }
 
     /**
