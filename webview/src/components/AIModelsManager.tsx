@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useVSCode } from '../hooks/useVSCode';
 
+// Global providers cache to avoid multiple API calls
+let globalProviders: any[] = [];
+let providersLoaded = false;
+
 /**
  * AI Models Manager component
  * Handles AI provider selection, model selection, and API key management
@@ -13,58 +17,88 @@ type AIModelsManagerProps = {
 };
 
 const AIModelsManager: React.FC<AIModelsManagerProps> = ({ onConnect, openAIIconUrl, togetherAIIconUrl, awsBedrockIconUrl }) => {
-  const [selectedProvider, setSelectedProvider] = useState('OpenAI');
+  const [providers, setProviders] = useState<any[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<any>(null);
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isLoadingProviders, setIsLoadingProviders] = useState(true);
   const [showProviderDropdown, setShowProviderDropdown] = useState(false);
+  const [showModelsDropdown, setShowModelsDropdown] = useState(false);
+  const [modelSearchTerm, setModelSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const modelsDropdownRef = useRef<HTMLDivElement>(null);
   const { postMessage } = useVSCode();
 
-  const providers = [
-    { id: 'OpenAI', name: 'OpenAI' },
-    { id: 'TogetherAI', name: 'TogetherAI' },
-    { id: 'AWSBedrock', name: 'AWS Bedrock' }
-  ];
+  // Get models for the selected provider
+  const getModelsForProvider = (provider: any) => {
+    return provider?.config?.models || [];
+  };
 
-  const models = {
-    OpenAI: [
-      'gpt-4o',
-      'gpt-4o-mini',
-      'gpt-4-turbo',
-      'gpt-3.5-turbo'
-    ],
-    TogetherAI: [
-      'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8'
-    ],
-    AWSBedrock: [
-      'anthropic.claude-3-haiku-20240307-v1:0',
-      'anthropic.claude-3-opus-20240229-v1:0',
-      'anthropic.claude-3-sonnet-20240229-v1:0',
-      'anthropic.claude-3-5-haiku-20241022-v1:0',
-      'anthropic.claude-3-5-sonnet-20241022-v2:0',
-      'anthropic.claude-3-5-sonnet-20240620-v1:0',
-      'anthropic.claude-3-7-sonnet-20250219-v1:0',
-      'anthropic.claude-opus-4-20250514-v1:0',
-      'anthropic.claude-sonnet-4-20250514-v1:0',
-      'anthropic.claude-v2:1',
-      'anthropic.claude-v2'
-    ]
+  // Get current models based on selected provider
+  const currentModels = selectedProvider ? getModelsForProvider(selectedProvider) : [];
+
+  const handleProviderChange = (provider: any) => {
+    setSelectedProvider(provider);
+    setSelectedModel(''); // Reset selected model when changing provider
+    setModelSearchTerm(''); // Reset search term
+    setShowProviderDropdown(false);
+  };
+
+  // Filter models based on search term
+  const filteredModels = currentModels.filter((model: string) =>
+    model.toLowerCase().includes(modelSearchTerm.toLowerCase())
+  );
+
+  const handleModelSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setModelSearchTerm(e.target.value);
+    if (!showModelsDropdown) {
+      setShowModelsDropdown(true);
+    }
+  };
+
+  const handleSearchInputClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowModelsDropdown(true);
+    // Focus the input when clicking on it
+    const input = e.currentTarget.querySelector('input') as HTMLInputElement;
+    if (input) {
+      input.focus();
+      input.removeAttribute('readonly');
+    }
   };
 
   const handleModelSelect = (model: string) => {
     setSelectedModel(model);
+    setModelSearchTerm(model);
+    setShowModelsDropdown(false);
   };
 
-  const handleProviderChange = (providerId: string) => {
-    setSelectedProvider(providerId);
-    setSelectedModel(''); // Reset selected model when changing provider
-    setShowProviderDropdown(false);
-  };
+  // Load providers on component mount (only once)
+  useEffect(() => {
+    // Check if providers are already loaded in global cache
+    if (providersLoaded && globalProviders.length > 0) {
+      console.log('📦 Using cached providers from memory');
+      setProviders(globalProviders);
+      if (globalProviders.length > 0) {
+        // Sort by ID and select the one with the lowest ID
+        const sortedProviders = [...globalProviders].sort((a: any, b: any) => a.id - b.id);
+        const defaultProvider = sortedProviders[0];
+        setSelectedProvider(defaultProvider);
+        console.log('🎯 Default provider selected from cache (lowest ID):', defaultProvider);
+      }
+      setIsLoadingProviders(false);
+    } else if (!providersLoaded) {
+      console.log('🔄 Loading providers from API...');
+      postMessage({
+        command: 'getProviders'
+      });
+    }
+  }, []); // Empty dependency array to run only once
 
   const handleConnect = () => {
-    if (!selectedModel || !apiKey) {
+    if (!selectedModel || !apiKey || !selectedProvider) {
       return;
     }
 
@@ -75,10 +109,22 @@ const AIModelsManager: React.FC<AIModelsManagerProps> = ({ onConnect, openAIIcon
     console.log('📊 Selected model:', selectedModel);
     console.log('🔑 API key length:', apiKey.length);
 
-    // Step 1: Get providers to find the provider ID
-    console.log('🔍 Step 1: Getting providers...');
+    // Create integration token directly since we already have the provider data
+    console.log('🔑 Creating integration token...');
+    const tokenData = {
+      providerId: selectedProvider.id,
+      name: `Mi Token ${selectedProvider.name}`,
+      token: apiKey,
+      data: {
+        defaultModel: selectedModel
+      }
+    };
+
+    console.log('📤 Token data:', tokenData);
+
     postMessage({
-      command: 'getProviders'
+      command: 'createIntegrationToken',
+      tokenData: tokenData
     });
   };
 
@@ -96,72 +142,49 @@ const AIModelsManager: React.FC<AIModelsManagerProps> = ({ onConnect, openAIIcon
             console.error('❌ Providers data is not an array:', data);
             postMessage({
               command: 'showErrorMessage',
-              message: '❌ Something went wrong while connecting. Please check your token and try again'
+              message: '❌ Failed to load providers. Please try again.'
             });
-            setIsConnecting(false);
+            setIsLoadingProviders(false);
             return;
           }
           
-          // Find the provider ID based on selected provider
-          const providerData = data.find((p: any) => {
-            if (selectedProvider === 'OpenAI') return p.name === 'OpenAI';
-            if (selectedProvider === 'TogetherAI') return p.name === 'TogetherAI';
-            if (selectedProvider === 'AWSBedrock') return p.name === 'AWS Bedrock';
-            return false;
-          });
-
-          if (!providerData) {
-            console.error('❌ Provider not found:', selectedProvider);
-            postMessage({
-              command: 'showErrorMessage',
-              message: '❌ Something went wrong while connecting. Please check your token and try again'
-            });
-            setIsConnecting(false);
-            return;
+          // Save to global cache
+          globalProviders = data;
+          providersLoaded = true;
+          
+          // Set providers and select the one with the lowest ID
+          setProviders(data);
+          if (data.length > 0) {
+            // Sort by ID and select the one with the lowest ID
+            const sortedProviders = [...data].sort((a: any, b: any) => a.id - b.id);
+            const defaultProvider = sortedProviders[0];
+            setSelectedProvider(defaultProvider);
+            console.log('🎯 Default provider selected (lowest ID):', defaultProvider);
+            console.log('📊 All providers loaded and cached:', data);
           }
-
-          const providerId = providerData.id;
-          console.log('🎯 Found provider ID:', providerId);
-
-          // Step 2: Create integration token
-          console.log('🔑 Step 2: Creating integration token...');
-          const tokenData = {
-            providerId: providerId,
-            name: `Mi Token ${selectedProvider}`,
-            token: apiKey,
-            data: {
-              defaultModel: selectedModel
-            }
-          };
-
-          console.log('📤 Token data:', tokenData);
-
-          postMessage({
-            command: 'createIntegrationToken',
-            tokenData: tokenData
-          });
+          setIsLoadingProviders(false);
         } else {
           console.error('❌ Failed to get providers:', error);
           postMessage({
             command: 'showErrorMessage',
-            message: '❌ Something went wrong while connecting. Please check your token and try again'
+            message: '❌ Failed to load providers. Please try again.'
           });
-          setIsConnecting(false);
+          setIsLoadingProviders(false);
         }
       } else if (command === 'createIntegrationToken') {
         if (success) {
           console.log('✅ Integration token created:', data);
 
-          // Step 3: Send configuration to VS Code extension
-          console.log('⚙️ Step 3: Sending configuration to extension...');
+          // Send configuration to VS Code extension
+          console.log('⚙️ Sending configuration to extension...');
           postMessage({
             command: 'configureAI',
-            provider: selectedProvider,
+            provider: selectedProvider?.name,
             model: selectedModel,
             apiKey: apiKey
           });
           
-          // Step 4: Navigate to control panel
+          // Navigate to control panel
           console.log('🎉 Connection successful! Navigating to control panel...');
           onConnect?.();
         } else {
@@ -177,13 +200,16 @@ const AIModelsManager: React.FC<AIModelsManagerProps> = ({ onConnect, openAIIcon
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [selectedProvider, selectedModel, apiKey, onConnect, postMessage]);
+  }, []); // Empty dependency array to prevent re-renders
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowProviderDropdown(false);
+      }
+      if (modelsDropdownRef.current && !modelsDropdownRef.current.contains(event.target as Node)) {
+        setShowModelsDropdown(false);
       }
     };
 
@@ -223,41 +249,71 @@ const AIModelsManager: React.FC<AIModelsManagerProps> = ({ onConnect, openAIIcon
     </svg>
   );
 
-  const OpenAIIcon: React.FC = () => (
-    <img 
-      src={openAIIconUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3TDEyIDEyTDIyIDdMMTIgMloiIHN0cm9rZT0iY3VycmVudENvbG9yIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8cGF0aCBkPSJNMiAxN0wxMiAyMkwyMiAxNyIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxwYXRoIGQ9Ik0yIDEyTDEyIDE3TDIyIDEyIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+'} 
-      alt="OpenAI" 
-      width="20" 
-      height="20"
-    />
+  const SearchIcon: React.FC = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
+      <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
   );
 
-  const TogetherAIIcon: React.FC = () => (
-    <img 
-      src={togetherAIIconUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3TDEyIDEyTDIyIDdMMTIgMloiIHN0cm9rZT0iY3VycmVudENvbG9yIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8cGF0aCBkPSJNMiAxN0wxMiAyMkwyMiAxNyIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxwYXRoIGQ9Ik0yIDEyTDEyIDE3TDIyIDEyIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+'} 
-      alt="TogetherAI" 
-      width="24" 
-      height="20"
-      style={{ objectFit: 'contain' }}
-    />
-  );
+  // Get provider icon based on provider name
+  const getProviderIcon = (providerName: string) => {
+    switch (providerName) {
+      case 'OpenAI':
+        return (
+          <img 
+            src={openAIIconUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3TDEyIDEyTDIyIDdMMTIgMloiIHN0cm9rZT0iY3VycmVudENvbG9yIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8cGF0aCBkPSJNMiAxN0wxMiAyMkwyMiAxNyIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxwYXRoIGQ9Ik0yIDEyTDEyIDE3TDIyIDEyIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+'} 
+            alt="OpenAI" 
+            width="20" 
+            height="20"
+          />
+        );
+      case 'TogetherAI':
+        return (
+          <img 
+            src={togetherAIIconUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3TDEyIDEyTDIyIDdMMTIgMloiIHN0cm9rZT0iY3VycmVudENvbG9yIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8cGF0aCBkPSJNMiAxN0wxMiAyMkwyMiAxNyIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxwYXRoIGQ9Ik0yIDEyTDEyIDE3TDIyIDEyIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+'} 
+            alt="TogetherAI" 
+            width="24" 
+            height="20"
+            style={{ objectFit: 'contain' }}
+          />
+        );
+      case 'AWSBedrock':
+        return (
+          <img 
+            src={awsBedrockIconUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3TDEyIDEyTDIyIDdMMTIgMloiIHN0cm9rZT0iY3VycmVudENvbG9yIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8cGF0aCBkPSJNMiAxN0wxMiAyMkwyMiAxNyIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+'} 
+            alt="AWS Bedrock" 
+            width="24" 
+            height="20"
+            style={{ objectFit: 'contain' }}
+          />
+        );
+      default:
+        return (
+          <div style={{ width: '20px', height: '20px', backgroundColor: 'var(--vscode-input-background)', borderRadius: '4px' }} />
+        );
+    }
+  };
 
-  const AWSBedrockIcon: React.FC = () => (
-    <img 
-      src={awsBedrockIconUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMiA3TDEyIDEyTDIyIDdMMTIgMloiIHN0cm9rZT0iY3VycmVudENvbG9yIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8cGF0aCBkPSJNMiAxN0wxMiAyMkwyMiAxNyIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxwYXRoIGQ9Ik0yIDEyTDEyIDE3TDIyIDEyIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+'} 
-      alt="AWS Bedrock" 
-      width="24" 
-      height="20"
-      style={{ objectFit: 'contain' }}
-    />
-  );
+  if (isLoadingProviders) {
+    return (
+      <div className="ai-models-manager">
+        <div className="ai-models-header">
+          <h1 className="ai-models-title">Connect your AI provider</h1>
+          <p className="ai-models-subtitle">
+            Loading providers...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="ai-models-manager">
       <div className="ai-models-header">
         <h1 className="ai-models-title">Connect your AI provider</h1>
         <p className="ai-models-subtitle">
-          I’ll use your API token to evaluate your agents directly from your provider.
+          I'll use your API token to evaluate your agents directly from your provider.
         </p>
       </div>
 
@@ -267,20 +323,22 @@ const AIModelsManager: React.FC<AIModelsManagerProps> = ({ onConnect, openAIIcon
           <h3 className="ai-models-section-title">Select provider</h3>
           <div className="provider-select" onClick={() => setShowProviderDropdown(!showProviderDropdown)}>
             <div className="provider-option">
-              {selectedProvider === 'OpenAI' ? <OpenAIIcon /> : selectedProvider === 'TogetherAI' ? <TogetherAIIcon /> : <AWSBedrockIcon />}
-              <span>{selectedProvider}</span>
+              {selectedProvider ? getProviderIcon(selectedProvider.name) : null}
+              <span>{selectedProvider?.name || 'Select a provider'}</span>
             </div>
             <ChevronDownIcon />
           </div>
           {showProviderDropdown && (
             <div className="provider-dropdown">
-              {providers.map((provider) => (
+              {providers
+                .sort((a: any, b: any) => a.id - b.id)
+                .map((provider) => (
                 <div 
                   key={provider.id}
-                  className={`provider-dropdown-item ${selectedProvider === provider.id ? 'selected' : ''}`}
-                  onClick={() => handleProviderChange(provider.id)}
+                  className={`provider-dropdown-item ${selectedProvider?.id === provider.id ? 'selected' : ''}`}
+                  onClick={() => handleProviderChange(provider)}
                 >
-                  {provider.id === 'OpenAI' ? <OpenAIIcon /> : provider.id === 'TogetherAI' ? <TogetherAIIcon /> : <AWSBedrockIcon />}
+                  {getProviderIcon(provider.name)}
                   <span>{provider.name}</span>
                 </div>
               ))}
@@ -289,30 +347,56 @@ const AIModelsManager: React.FC<AIModelsManagerProps> = ({ onConnect, openAIIcon
         </div>
 
         {/* Select models section */}
-        <div className="ai-models-section">
-          <h3 className="ai-models-section-title">Select your favorite models</h3>
-          <div className="models-list">
-            {models[selectedProvider as keyof typeof models].map((model) => (
-              <div key={model} className="model-item">
-                <div className="model-info">
-                  {selectedProvider === 'OpenAI' ? <OpenAIIcon /> : selectedProvider === 'TogetherAI' ? <TogetherAIIcon /> : <AWSBedrockIcon />}
-                  <span>{model}</span>
-                </div>
+        <div className="ai-models-section" ref={modelsDropdownRef}>
+          <h3 className="ai-models-section-title">Select your favorite model</h3>
+          <div className="model-search-container">
+            <div className="model-search-input" onClick={() => setShowModelsDropdown(!showModelsDropdown)}>
+              <SearchIcon />
+              <div onClick={handleSearchInputClick}>
                 <input
-                  type="radio"
-                  name="selectedModel"
-                  className="model-radio"
-                  checked={selectedModel === model}
-                  onChange={() => handleModelSelect(model)}
+                  type="text"
+                  placeholder={selectedProvider ? "Search models..." : "Select a provider first"}
+                  value={modelSearchTerm}
+                  onChange={handleModelSearchChange}
+                  onFocus={() => setShowModelsDropdown(true)}
+                  className="model-search-field"
+                  readOnly={!selectedProvider}
+                  disabled={!selectedProvider}
                 />
               </div>
-            ))}
+              <ChevronDownIcon />
+            </div>
+            {showModelsDropdown && selectedProvider && (
+              <div className="models-dropdown">
+                {filteredModels.length > 0 ? (
+                  filteredModels.map((model: string) => (
+                    <div 
+                      key={model} 
+                      className={`model-dropdown-item ${selectedModel === model ? 'selected' : ''}`}
+                      onClick={() => handleModelSelect(model)}
+                    >
+                      <div className="model-info">
+                        {getProviderIcon(selectedProvider.name)}
+                        <span>{model}</span>
+                      </div>
+                      {selectedModel === model && (
+                        <div className="model-check">✓</div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="model-dropdown-item no-results">
+                    <span>No models found</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Connect to provider section */}
         <div className="ai-models-section">
-          <h3 className="ai-models-section-title">Connect to {selectedProvider}</h3>
+          <h3 className="ai-models-section-title">Connect to {selectedProvider?.name || 'provider'}</h3>
           <div className="api-key-input">
             <KeyIcon />
             <input

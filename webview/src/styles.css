@@ -1144,9 +1144,9 @@ body {
 
 /* AI Models Manager Styles */
 .ai-models-manager {
-  max-width: 500px;
+  max-width: 600px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 24px 0;
 }
 
 .ai-models-header {
@@ -1289,6 +1289,98 @@ body {
   height: 16px;
   accent-color: var(--vscode-focusBorder);
   cursor: pointer;
+}
+
+/* Model Search Container Styles */
+.model-search-container {
+  position: relative;
+}
+
+.model-search-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background-color: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.model-search-input:hover {
+  border-color: var(--vscode-focusBorder);
+}
+
+.model-search-field {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--vscode-input-foreground);
+  font-size: 14px;
+  font-family: inherit;
+  width: 100%;
+}
+
+.model-search-input > div {
+  flex: 1;
+  display: flex;
+}
+
+.model-search-field::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+
+/* Models Dropdown Styles */
+.models-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background-color: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 8px;
+  z-index: 1000;
+  box-shadow: var(--vscode-widget-shadow);
+  overflow: hidden;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.model-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  color: var(--vscode-editor-foreground);
+}
+
+.model-dropdown-item:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.model-dropdown-item.selected {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.model-dropdown-item.no-results {
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+  cursor: default;
+}
+
+.model-dropdown-item.no-results:hover {
+  background-color: transparent;
+}
+
+.model-check {
+  color: var(--vscode-button-background);
+  font-weight: bold;
+  font-size: 16px;
 }
 
 /* API Key Input Styles */
